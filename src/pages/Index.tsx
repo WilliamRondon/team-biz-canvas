@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -115,7 +114,7 @@ const Index = () => {
     }
   ]);
 
-  // Detailed sections data
+  // Expanded detailed sections data with comprehensive business plan structure
   const detailedSections = {
     conceito: [
       {
@@ -123,16 +122,51 @@ const Index = () => {
         title: 'Resumo Executivo',
         content: 'Nossa empresa desenvolve soluções inovadoras para o mercado B2B...',
         votes: { approved: 4, rejected: 1, total: 5 },
-        comments: 3,
-        status: 'voting' as const
+        comments: [
+          {
+            id: 'c1',
+            author: 'Maria Silva',
+            content: 'Excelente proposta, mas seria interessante adicionar mais detalhes sobre o ROI esperado.',
+            timestamp: '2 horas atrás',
+            likes: 3,
+            isResolved: false
+          }
+        ],
+        status: 'voting' as const,
+        assignedTo: 'João Santos',
+        deadline: '15/12/2024',
+        completionPercentage: 75
       },
       {
         id: 'missao-visao',
-        title: 'Missão e Visão',
+        title: 'Missão, Visão e Valores',
         content: '',
         votes: { approved: 0, rejected: 0, total: 0 },
-        comments: 0,
-        status: 'draft' as const
+        comments: [],
+        status: 'draft' as const,
+        assignedTo: 'Ana Costa',
+        deadline: '10/12/2024',
+        completionPercentage: 25
+      },
+      {
+        id: 'objetivos-estrategicos',
+        title: 'Objetivos Estratégicos',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0,
+        dependencies: ['Missão, Visão e Valores']
+      },
+      {
+        id: 'modelo-negocio',
+        title: 'Modelo de Negócio',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0,
+        dependencies: ['Business Model Canvas']
       }
     ],
     pesquisa: [
@@ -141,16 +175,49 @@ const Index = () => {
         title: 'Análise de Mercado',
         content: 'O mercado brasileiro de tecnologia tem crescido...',
         votes: { approved: 3, rejected: 0, total: 3 },
-        comments: 2,
-        status: 'approved' as const
+        comments: [
+          {
+            id: 'c2',
+            author: 'Pedro Oliveira',
+            content: 'Dados muito consistentes. Sugiro incluir análise de sazonalidade.',
+            timestamp: '1 dia atrás',
+            likes: 2,
+            isResolved: true
+          }
+        ],
+        status: 'approved' as const,
+        assignedTo: 'Carlos Pereira',
+        completionPercentage: 100
       },
       {
         id: 'personas',
         title: 'Personas de Cliente',
         content: '',
         votes: { approved: 0, rejected: 0, total: 0 },
-        comments: 0,
-        status: 'draft' as const
+        comments: [],
+        status: 'draft' as const,
+        assignedTo: 'Luiza Ferreira',
+        deadline: '18/12/2024',
+        completionPercentage: 40
+      },
+      {
+        id: 'analise-concorrencia',
+        title: 'Análise da Concorrência',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 30,
+        dependencies: ['Análise de Mercado']
+      },
+      {
+        id: 'tendencias-mercado',
+        title: 'Tendências de Mercado',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0
       }
     ],
     configuracao: [
@@ -159,16 +226,48 @@ const Index = () => {
         title: 'Estrutura Organizacional',
         content: '',
         votes: { approved: 0, rejected: 0, total: 0 },
-        comments: 0,
-        status: 'draft' as const
+        comments: [],
+        status: 'draft' as const,
+        assignedTo: 'Roberto Lima',
+        deadline: '20/12/2024',
+        completionPercentage: 20
       },
       {
         id: 'plano-operacional',
         title: 'Plano Operacional',
         content: '',
         votes: { approved: 0, rejected: 0, total: 0 },
-        comments: 0,
-        status: 'draft' as const
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0,
+        dependencies: ['Estrutura Organizacional']
+      },
+      {
+        id: 'recursos-humanos',
+        title: 'Recursos Humanos',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0
+      },
+      {
+        id: 'tecnologia-sistemas',
+        title: 'Tecnologia e Sistemas',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0
+      },
+      {
+        id: 'localizacao-infraestrutura',
+        title: 'Localização e Infraestrutura',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0
       }
     ],
     projecoes: [
@@ -177,16 +276,49 @@ const Index = () => {
         title: 'Análise Financeira',
         content: '',
         votes: { approved: 0, rejected: 0, total: 0 },
-        comments: 0,
-        status: 'draft' as const
+        comments: [],
+        status: 'draft' as const,
+        assignedTo: 'Fernanda Rodrigues',
+        deadline: '25/12/2024',
+        completionPercentage: 15
+      },
+      {
+        id: 'projecoes-receita',
+        title: 'Projeções de Receita',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0,
+        dependencies: ['Análise de Mercado', 'Personas de Cliente']
       },
       {
         id: 'analise-riscos',
         title: 'Análise de Riscos',
         content: '',
         votes: { approved: 0, rejected: 0, total: 0 },
-        comments: 0,
-        status: 'draft' as const
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 10
+      },
+      {
+        id: 'plano-investimentos',
+        title: 'Plano de Investimentos',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0
+      },
+      {
+        id: 'analise-viabilidade',
+        title: 'Análise de Viabilidade',
+        content: '',
+        votes: { approved: 0, rejected: 0, total: 0 },
+        comments: [],
+        status: 'draft' as const,
+        completionPercentage: 0,
+        dependencies: ['Análise Financeira', 'Análise de Riscos']
       }
     ]
   };
@@ -209,14 +341,14 @@ const Index = () => {
     }
   ];
 
-  // Progress data
+  // Enhanced progress data
   const projectStats = {
-    totalSections: 20,
+    totalSections: 24,
     approvedSections: 6,
-    pendingSections: 4,
+    pendingSections: 8,
     rejectedSections: 1,
-    teamMembers: 5,
-    overallProgress: 35
+    teamMembers: 6,
+    overallProgress: 42
   };
 
   const sectionProgress = [
@@ -226,20 +358,41 @@ const Index = () => {
         { name: 'Proposta de Valor', status: 'approved' as const, progress: 100 },
         { name: 'Segmentos de Clientes', status: 'pending' as const, progress: 75 },
         { name: 'Canais', status: 'draft' as const, progress: 30 },
-        { name: 'Relacionamento', status: 'pending' as const, progress: 80 }
+        { name: 'Relacionamento', status: 'pending' as const, progress: 80 },
+        { name: 'Fontes de Receita', status: 'draft' as const, progress: 20 },
+        { name: 'Recursos-Chave', status: 'draft' as const, progress: 10 }
       ]
     },
     {
-      category: 'Plano Detalhado',
+      category: 'Conceito',
+      sections: [
+        { name: 'Resumo Executivo', status: 'pending' as const, progress: 75 },
+        { name: 'Missão e Visão', status: 'draft' as const, progress: 25 },
+        { name: 'Objetivos Estratégicos', status: 'draft' as const, progress: 0 },
+        { name: 'Modelo de Negócio', status: 'draft' as const, progress: 0 }
+      ]
+    },
+    {
+      category: 'Pesquisa',
       sections: [
         { name: 'Análise de Mercado', status: 'approved' as const, progress: 100 },
-        { name: 'Resumo Executivo', status: 'pending' as const, progress: 90 },
-        { name: 'Análise Financeira', status: 'draft' as const, progress: 20 },
-        { name: 'Análise de Riscos', status: 'draft' as const, progress: 0 }
+        { name: 'Personas de Cliente', status: 'draft' as const, progress: 40 },
+        { name: 'Análise da Concorrência', status: 'draft' as const, progress: 30 },
+        { name: 'Tendências de Mercado', status: 'draft' as const, progress: 0 }
+      ]
+    },
+    {
+      category: 'Projeções',
+      sections: [
+        { name: 'Análise Financeira', status: 'draft' as const, progress: 15 },
+        { name: 'Projeções de Receita', status: 'draft' as const, progress: 0 },
+        { name: 'Análise de Riscos', status: 'draft' as const, progress: 10 },
+        { name: 'Análise de Viabilidade', status: 'draft' as const, progress: 0 }
       ]
     }
   ];
 
+  // Navigation and category items remain the same
   const navigationItems = [
     { id: 'canvas', label: 'Canvas', icon: <FileText className="w-4 h-4" /> },
     { id: 'detalhado', label: 'Plano Detalhado', icon: <Users className="w-4 h-4" /> },
@@ -255,16 +408,19 @@ const Index = () => {
     { id: 'projecoes', label: 'Projeções' }
   ];
 
+  // Enhanced handler functions
   const handleUpdateCanvasSection = (id: string, content: string) => {
     setCanvasSections(prev => prev.map(section => 
       section.id === id ? { ...section, content } : section
     ));
+    console.log('Canvas section updated:', id, content);
   };
 
   const handleStartVoting = (id: string) => {
     setCanvasSections(prev => prev.map(section => 
       section.id === id ? { ...section, status: 'voting' } : section
     ));
+    console.log('Starting voting for section:', id);
   };
 
   const handleSectionSave = (id: string, content: string) => {
@@ -275,11 +431,23 @@ const Index = () => {
     console.log('Voting:', sectionId, vote, comment);
   };
 
+  const handleAddComment = (sectionId: string, content: string, parentId?: string) => {
+    console.log('Adding comment:', sectionId, content, parentId);
+  };
+
+  const handleLikeComment = (commentId: string) => {
+    console.log('Liking comment:', commentId);
+  };
+
+  const handleResolveComment = (commentId: string) => {
+    console.log('Resolving comment:', commentId);
+  };
+
   const overallProgress = Math.round(canvasSections.filter(s => s.status === 'approved').length / canvasSections.length * 100);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header */}
+      {/* Header - keep existing code */}
       <header className="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -317,7 +485,7 @@ const Index = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation */}
+        {/* Navigation - keep existing code */}
         <nav className="mb-8">
           <div className="flex space-x-1 bg-white/70 backdrop-blur-sm rounded-lg p-1 border border-slate-200">
             {navigationItems.map((item) => (
@@ -337,7 +505,7 @@ const Index = () => {
           </div>
         </nav>
 
-        {/* Canvas View */}
+        {/* Canvas View - keep existing code */}
         {activeSection === 'canvas' && (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -361,11 +529,11 @@ const Index = () => {
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">Plano de Negócios Detalhado</h2>
               <p className="text-slate-600 max-w-2xl mx-auto">
-                Desenvolva cada seção do seu plano de negócios com profundidade e colaboração.
+                Desenvolva cada seção do seu plano de negócios com profundidade e colaboração. Cada seção possui métricas de progresso, comentários e sistema de aprovação.
               </p>
             </div>
 
-            {/* Category Navigation */}
+            {/* Category Navigation - keep existing code */}
             <div className="flex space-x-1 bg-white/70 backdrop-blur-sm rounded-lg p-1 border border-slate-200 mb-6">
               {categoryItems.map((item) => (
                 <button
@@ -390,13 +558,16 @@ const Index = () => {
                   section={section}
                   onSave={handleSectionSave}
                   onStartVoting={handleStartVoting}
+                  onAddComment={handleAddComment}
+                  onLikeComment={handleLikeComment}
+                  onResolveComment={handleResolveComment}
                 />
               ))}
             </div>
           </div>
         )}
 
-        {/* Voting View */}
+        {/* Voting View - keep existing code */}
         {activeSection === 'votacao' && (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -430,7 +601,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Progress View */}
+        {/* Progress View - keep existing code */}
         {activeSection === 'progresso' && (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -447,7 +618,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Approval View */}
+        {/* Approval View - keep existing code */}
         {activeSection === 'aprovacao' && (
           <div className="text-center py-16">
             <div className="bg-white/70 backdrop-blur-sm rounded-lg p-8 border border-slate-200">
