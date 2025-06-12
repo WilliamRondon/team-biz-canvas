@@ -81,6 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error loading business plan:', error);
+        // Try to create a default business plan
+        await createDefaultBusinessPlan(userId);
         return;
       }
 
@@ -92,6 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error in loadUserBusinessPlan:', error);
+      // Try to create a default business plan
+      await createDefaultBusinessPlan(userId);
     }
   };
 
