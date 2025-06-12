@@ -1,170 +1,205 @@
 
 import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { MessageSquare, ThumbsUp, Check, Reply } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MessageCircle, Send, Reply, ThumbsUp, Clock } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface Comment {
   id: string;
   author: string;
+  avatar?: string;
   content: string;
   timestamp: string;
   likes: number;
-  isResolved: boolean;
   replies?: Comment[];
+  isResolved?: boolean;
 }
 
 interface CommentsSectionProps {
+  sectionId: string;
   comments: Comment[];
-  onAddComment: (content: string, parentId?: string) => void;
+  onAddComment: (sectionId: string, content: string, parentId?: string) => void;
   onLikeComment: (commentId: string) => void;
   onResolveComment: (commentId: string) => void;
 }
 
-const CommentsSection = ({
-  comments,
-  onAddComment,
-  onLikeComment,
-  onResolveComment
-}: CommentsSectionProps) => {
+const CommentsSection: React.FC<CommentsSectionProps> = ({ 
+  sectionId, 
+  comments, 
+  onAddComment, 
+  onLikeComment, 
+  onResolveComment 
+}) => {
   const [newComment, setNewComment] = useState('');
-  const [replyToId, setReplyToId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
+  const { toast } = useToast();
 
   const handleAddComment = () => {
-    if (newComment.trim()) {
-      onAddComment(newComment);
-      setNewComment('');
-    }
+    if (!newComment.trim()) return;
+    
+    onAddComment(sectionId, newComment);
+    setNewComment('');
+    toast({
+      title: "Comentário adicionado",
+      description: "Seu comentário foi adicionado com sucesso.",
+    });
   };
 
   const handleAddReply = (parentId: string) => {
-    if (replyContent.trim()) {
-      onAddComment(replyContent, parentId);
-      setReplyContent('');
-      setReplyToId(null);
-    }
+    if (!replyContent.trim()) return;
+    
+    onAddComment(sectionId, replyContent, parentId);
+    setReplyContent('');
+    setReplyTo(null);
+    toast({
+      title: "Resposta adicionada",
+      description: "Sua resposta foi adicionada com sucesso.",
+    });
   };
 
-  const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
-    <div className={`p-3 border rounded-lg ${isReply ? 'ml-6 bg-gray-50' : 'bg-white'}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <span className="font-medium text-sm">{comment.author}</span>
-          <span className="text-xs text-gray-500">{comment.timestamp}</span>
-          {comment.isResolved && (
-            <Badge variant="outline" className="text-xs">
-              <Check className="w-3 h-3 mr-1" />
-              Resolvido
-            </Badge>
-          )}
+  const CommentItem: React.FC<{ comment: Comment; isReply?: boolean }> = ({ comment, isReply = false }) => (
+    <div className={`border-l-2 ${isReply ? 'ml-8 border-gray-200' : 'border-blue-200'} pl-4 py-3`}>
+      <div className="flex items-start space-x-3">
+        <Avatar className="w-8 h-8">
+          <AvatarImage src={comment.avatar} />
+          <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <div className="flex items-center space-x-2 mb-1">
+            <span className="font-medium text-sm">{comment.author}</span>
+            <div className="flex items-center space-x-1 text-xs text-gray-500">
+              <Clock className="w-3 h-3" />
+              <span>{comment.timestamp}</span>
+            </div>
+            {comment.isResolved && (
+              <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                Resolvido
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onLikeComment(comment.id)}
+              className="text-xs h-6 px-2"
+            >
+              <ThumbsUp className="w-3 h-3 mr-1" />
+              {comment.likes}
+            </Button>
+            {!isReply && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+                className="text-xs h-6 px-2"
+              >
+                <Reply className="w-3 h-3 mr-1" />
+                Responder
+              </Button>
+            )}
+            {!comment.isResolved && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onResolveComment(comment.id)}
+                className="text-xs h-6 px-2 text-green-600"
+              >
+                Resolver
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       
-      <p className="text-sm mb-3">{comment.content}</p>
+      {/* Replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="mt-3">
+          {comment.replies.map((reply) => (
+            <CommentItem key={reply.id} comment={reply} isReply />
+          ))}
+        </div>
+      )}
       
-      <div className="flex items-center space-x-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onLikeComment(comment.id)}
-          className="text-xs"
-        >
-          <ThumbsUp className="w-3 h-3 mr-1" />
-          {comment.likes}
-        </Button>
-        
-        {!isReply && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setReplyToId(replyToId === comment.id ? null : comment.id)}
-            className="text-xs"
-          >
-            <Reply className="w-3 h-3 mr-1" />
-            Responder
-          </Button>
-        )}
-        
-        {!comment.isResolved && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onResolveComment(comment.id)}
-            className="text-xs"
-          >
-            <Check className="w-3 h-3 mr-1" />
-            Resolver
-          </Button>
-        )}
-      </div>
-
       {/* Reply Form */}
-      {replyToId === comment.id && (
-        <div className="mt-3 space-y-2">
+      {replyTo === comment.id && (
+        <div className="mt-3 ml-8">
           <Textarea
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="Escreva sua resposta..."
-            className="text-sm"
+            className="min-h-[60px] text-sm"
           />
-          <div className="flex space-x-2">
-            <Button size="sm" onClick={() => handleAddReply(comment.id)}>
+          <div className="flex space-x-2 mt-2">
+            <Button 
+              onClick={() => handleAddReply(comment.id)} 
+              size="sm"
+              disabled={!replyContent.trim()}
+            >
+              <Send className="w-3 h-3 mr-1" />
               Responder
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setReplyToId(null)}>
+            <Button 
+              onClick={() => setReplyTo(null)} 
+              variant="outline" 
+              size="sm"
+            >
               Cancelar
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* Replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {comment.replies.map((reply) => (
-            <CommentItem key={reply.id} comment={reply} isReply />
-          ))}
         </div>
       )}
     </div>
   );
 
   return (
-    <div className="space-y-4 border-t pt-4">
-      <h4 className="font-medium flex items-center">
-        <MessageSquare className="w-4 h-4 mr-2" />
-        Comentários
-      </h4>
-
-      {/* Add New Comment */}
-      <div className="space-y-2">
-        <Textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Adicione um comentário..."
-          className="min-h-[80px]"
-        />
-        <Button onClick={handleAddComment} disabled={!newComment.trim()}>
-          Comentar
-        </Button>
-      </div>
-
-      {/* Comments List */}
-      <div className="space-y-3">
-        {comments.map((comment) => (
-          <CommentItem key={comment.id} comment={comment} />
-        ))}
-      </div>
-
-      {comments.length === 0 && (
-        <div className="text-center py-6 text-gray-500">
-          <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p>Nenhum comentário ainda</p>
+    <Card className="mt-4">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center space-x-2 text-lg">
+          <MessageCircle className="w-5 h-5" />
+          <span>Comentários ({comments.length})</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* Add new comment */}
+        <div className="space-y-3 mb-6">
+          <Textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Adicione um comentário para discussão..."
+            className="min-h-[80px]"
+          />
+          <Button 
+            onClick={handleAddComment}
+            disabled={!newComment.trim()}
+            className="w-full sm:w-auto"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Adicionar Comentário
+          </Button>
         </div>
-      )}
-    </div>
+
+        {/* Comments list */}
+        <div className="space-y-4">
+          {comments.length > 0 ? (
+            comments.map((comment) => (
+              <CommentItem key={comment.id} comment={comment} />
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>Ainda não há comentários nesta seção.</p>
+              <p className="text-sm">Seja o primeiro a comentar!</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
