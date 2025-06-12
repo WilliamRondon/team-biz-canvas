@@ -1,15 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Lightbulb, Users, Target, Settings, DollarSign, TrendingUp, FileText, CheckCircle, Vote, BarChart3 } from 'lucide-react';
+import { Lightbulb, Users, Target, Settings, DollarSign, TrendingUp, FileText, CheckCircle, Vote, BarChart3, LogOut, UserPlus } from 'lucide-react';
 import CanvasEditor from '@/components/CanvasEditor';
 import SectionEditor from '@/components/SectionEditor';
 import VotingInterface from '@/components/VotingInterface';
 import ProgressDashboard from '@/components/ProgressDashboard';
+import TeamManagement from '@/components/TeamManagement';
+import { useAuth } from '@/hooks/useAuth';
+import { useRealtime, useRealtimeCanvasItems } from '@/hooks/useRealtime';
 
 const Index = () => {
+  const { user, currentBusinessPlan, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState('canvas');
   const [activeCategory, setActiveCategory] = useState('conceito');
+
+  // Use realtime hooks
+  const { onlineUsers } = useRealtime();
+  
+  // Callback to refresh canvas data when items change
+  const refreshCanvasData = useCallback(() => {
+    // This will be called when canvas items change in real-time
+    console.log('Canvas data updated in real-time');
+    // Force re-render or refresh data logic here
+  }, []);
+
+  useRealtimeCanvasItems(currentBusinessPlan?.business_plan_id, refreshCanvasData);
 
   // Canvas sections data
   const [canvasSections, setCanvasSections] = useState([
@@ -398,6 +414,7 @@ const Index = () => {
     { id: 'detalhado', label: 'Plano Detalhado', icon: <Users className="w-4 h-4" /> },
     { id: 'votacao', label: 'Votação', icon: <Vote className="w-4 h-4" /> },
     { id: 'progresso', label: 'Progresso', icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'equipe', label: 'Equipe', icon: <UserPlus className="w-4 h-4" /> },
     { id: 'aprovacao', label: 'Aprovação', icon: <CheckCircle className="w-4 h-4" /> }
   ];
 
@@ -443,11 +460,26 @@ const Index = () => {
     console.log('Resolving comment:', commentId);
   };
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  if (!currentBusinessPlan) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando seu workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
   const overallProgress = Math.round(canvasSections.filter(s => s.status === 'approved').length / canvasSections.length * 100);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header - keep existing code */}
+      {/* Header */}
       <header className="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -456,11 +488,23 @@ const Index = () => {
                 <Lightbulb className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Business Plan Studio</h1>
-                <p className="text-sm text-slate-600">Sistema Colaborativo de Plano de Negócios</p>
+                <h1 className="text-xl font-bold text-slate-900">
+                  {currentBusinessPlan.business_plans?.companies?.name || 'Business Plan Studio'}
+                </h1>
+                <p className="text-sm text-slate-600">
+                  {currentBusinessPlan.business_plans?.name || 'Sistema Colaborativo de Plano de Negócios'}
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Online users indicator */}
+              {onlineUsers.length > 0 && (
+                <div className="flex items-center space-x-2 text-sm text-slate-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>{onlineUsers.length} online</span>
+                </div>
+              )}
+              
               <div className="text-right">
                 <p className="text-sm text-slate-600">Progresso Geral</p>
                 <div className="flex items-center space-x-2">
@@ -476,8 +520,13 @@ const Index = () => {
               <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
                 Exportar
               </Button>
-              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                Compartilhar
+              <Button 
+                variant="outline" 
+                onClick={handleLogout}
+                className="border-red-200 text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
               </Button>
             </div>
           </div>
@@ -485,7 +534,7 @@ const Index = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation - keep existing code */}
+        {/* Navigation */}
         <nav className="mb-8">
           <div className="flex space-x-1 bg-white/70 backdrop-blur-sm rounded-lg p-1 border border-slate-200">
             {navigationItems.map((item) => (
@@ -505,7 +554,21 @@ const Index = () => {
           </div>
         </nav>
 
-        {/* Canvas View - keep existing code */}
+        {/* Team Management View */}
+        {activeSection === 'equipe' && (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">Gestão da Equipe</h2>
+              <p className="text-slate-600 max-w-2xl mx-auto">
+                Gerencie os membros da sua equipe, convide novos colaboradores e defina permissões.
+              </p>
+            </div>
+
+            <TeamManagement />
+          </div>
+        )}
+
+        {/* Canvas View */}
         {activeSection === 'canvas' && (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -533,7 +596,7 @@ const Index = () => {
               </p>
             </div>
 
-            {/* Category Navigation - keep existing code */}
+            {/* Category Navigation */}
             <div className="flex space-x-1 bg-white/70 backdrop-blur-sm rounded-lg p-1 border border-slate-200 mb-6">
               {categoryItems.map((item) => (
                 <button
@@ -567,7 +630,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Voting View - keep existing code */}
+        {/* Voting View */}
         {activeSection === 'votacao' && (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -601,7 +664,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Progress View - keep existing code */}
+        {/* Progress View */}
         {activeSection === 'progresso' && (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -618,7 +681,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Approval View - keep existing code */}
+        {/* Approval View */}
         {activeSection === 'aprovacao' && (
           <div className="text-center py-16">
             <div className="bg-white/70 backdrop-blur-sm rounded-lg p-8 border border-slate-200">

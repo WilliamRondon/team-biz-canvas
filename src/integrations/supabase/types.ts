@@ -9,13 +9,368 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      business_plans: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          progress_percentage: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          progress_percentage?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          progress_percentage?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canvas_items: {
+        Row: {
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          section_id: string | null
+          status: string | null
+          updated_at: string | null
+          workspace_type: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          section_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          workspace_type?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          section_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          workspace_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_items_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canvas_sections: {
+        Row: {
+          business_plan_id: string | null
+          description: string | null
+          id: string
+          section_type: string
+          sort_order: number | null
+          title: string
+        }
+        Insert: {
+          business_plan_id?: string | null
+          description?: string | null
+          id?: string
+          section_type: string
+          sort_order?: number | null
+          title: string
+        }
+        Update: {
+          business_plan_id?: string | null
+          description?: string | null
+          id?: string
+          section_type?: string
+          sort_order?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_sections_business_plan_id_fkey"
+            columns: ["business_plan_id"]
+            isOneToOne: false
+            referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          item_id: string | null
+          parent_comment_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          parent_comment_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          parent_comment_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          cnpj: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          legal_name: string | null
+          name: string
+          sector: string | null
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          legal_name?: string | null
+          name: string
+          sector?: string | null
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          legal_name?: string | null
+          name?: string
+          sector?: string | null
+        }
+        Relationships: []
+      }
+      invitations: {
+        Row: {
+          business_plan_id: string | null
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          invited_by: string | null
+          status: string | null
+          token: string
+        }
+        Insert: {
+          business_plan_id?: string | null
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          invited_by?: string | null
+          status?: string | null
+          token: string
+        }
+        Update: {
+          business_plan_id?: string | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invited_by?: string | null
+          status?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_business_plan_id_fkey"
+            columns: ["business_plan_id"]
+            isOneToOne: false
+            referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_votes: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          item_id: string | null
+          user_id: string | null
+          vote_type: string
+          vote_value: number | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          user_id?: string | null
+          vote_type: string
+          vote_value?: number | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          user_id?: string | null
+          vote_type?: string
+          vote_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_votes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          business_plan_id: string | null
+          id: string
+          invited_by: string | null
+          joined_at: string | null
+          role: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          business_plan_id?: string | null
+          id?: string
+          invited_by?: string | null
+          joined_at?: string | null
+          role?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          business_plan_id?: string | null
+          id?: string
+          invited_by?: string | null
+          joined_at?: string | null
+          role?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_business_plan_id_fkey"
+            columns: ["business_plan_id"]
+            isOneToOne: false
+            referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_section_progress: {
+        Args: { section_id: string }
+        Returns: number
+      }
+      create_default_canvas_sections: {
+        Args: { plan_id: string }
+        Returns: undefined
+      }
+      get_business_plan_progress: {
+        Args: { plan_id: string }
+        Returns: {
+          overall_percentage: number
+          sections: Json
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
