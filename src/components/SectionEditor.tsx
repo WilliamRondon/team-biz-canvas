@@ -5,24 +5,34 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { MessageSquare, Vote, Save, Users } from 'lucide-react';
+import { Edit3, Save, X, MessageCircle, ThumbsUp, ThumbsDown, Users, Clock, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import CommentsSection from './CommentsSection';
 
-interface Section {
+interface Comment {
   id: string;
-  title: string;
+  author: string;
+  avatar?: string;
   content: string;
-  votes: { approved: number; rejected: number; total: number };
-  comments: any[];
-  status: 'draft' | 'voting' | 'approved' | 'rejected';
-  assignedTo?: string;
-  deadline?: string;
-  completionPercentage: number;
-  dependencies?: string[];
+  timestamp: string;
+  likes: number;
+  replies?: Comment[];
+  isResolved?: boolean;
 }
 
 interface SectionEditorProps {
-  section: Section;
+  section: {
+    id: string;
+    title: string;
+    content: string;
+    votes: { approved: number; rejected: number; total: number };
+    comments: Comment[];
+    status: 'draft' | 'voting' | 'approved' | 'rejected';
+    assignedTo?: string;
+    deadline?: string;
+    dependencies?: string[];
+    completionPercentage: number;
+  };
   onSave: (id: string, content: string) => void;
   onStartVoting: (id: string) => void;
   onAddComment: (sectionId: string, content: string, parentId?: string) => void;
@@ -30,159 +40,183 @@ interface SectionEditorProps {
   onResolveComment: (commentId: string) => void;
 }
 
-const SectionEditor = ({
-  section,
-  onSave,
+const SectionEditor: React.FC<SectionEditorProps> = ({ 
+  section, 
+  onSave, 
   onStartVoting,
   onAddComment,
   onLikeComment,
   onResolveComment
-}: SectionEditorProps) => {
-  const [content, setContent] = useState(section.content);
+}) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [content, setContent] = useState(section.content);
   const [showComments, setShowComments] = useState(false);
+  const { toast } = useToast();
 
   const handleSave = () => {
     onSave(section.id, content);
     setIsEditing(false);
+    toast({
+      title: "Seção salva",
+      description: "Suas alterações foram salvas com sucesso.",
+    });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const handleCancel = () => {
+    setContent(section.content);
+    setIsEditing(false);
+  };
+
+  const getStatusColor = () => {
+    switch (section.status) {
       case 'approved': return 'bg-green-100 text-green-800';
-      case 'voting': return 'bg-yellow-100 text-yellow-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'voting': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
+  const getStatusText = () => {
+    switch (section.status) {
+      case 'approved': return 'Aprovada';
+      case 'rejected': return 'Rejeitada';
+      case 'voting': return 'Em Votação';
+      default: return 'Rascunho';
+    }
+  };
+
+  const hasUnresolvedComments = section.comments.some(comment => !comment.isResolved);
+  const approvalPercentage = section.votes.total > 0 
+    ? Math.round((section.votes.approved / section.votes.total) * 100) 
+    : 0;
+
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">{section.title}</CardTitle>
-          <div className="flex items-center space-x-2">
-            <Badge className={getStatusColor(section.status)}>
-              {section.status}
-            </Badge>
-            {section.assignedTo && (
-              <Badge variant="outline">
-                <Users className="w-3 h-3 mr-1" />
-                {section.assignedTo}
+    <div className="space-y-4">
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{section.title}</CardTitle>
+            <div className="flex items-center space-x-2">
+              <Badge className={getStatusColor()}>
+                {getStatusText()}
               </Badge>
-            )}
+              {section.status === 'voting' && (
+                <div className="flex items-center space-x-1 text-sm text-gray-600">
+                  <ThumbsUp className="w-4 h-4 text-green-600" />
+                  <span>{section.votes.approved}</span>
+                  <ThumbsDown className="w-4 h-4 text-red-600" />
+                  <span>{section.votes.rejected}</span>
+                  <span className="text-xs">({approvalPercentage}%)</span>
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowComments(!showComments)}
+                className="text-sm"
+              >
+                <MessageCircle className="w-4 h-4 mr-1" />
+                <span>{section.comments.length}</span>
+                {hasUnresolvedComments && (
+                  <AlertCircle className="w-3 h-3 ml-1 text-orange-500" />
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-        
-        {/* Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Progresso</span>
-            <span>{section.completionPercentage}%</span>
+          
+          {/* Progress and metadata */}
+          <div className="space-y-2 mt-3">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>Progresso da seção</span>
+              <span>{section.completionPercentage}%</span>
+            </div>
+            <Progress value={section.completionPercentage} className="h-2" />
+            
+            <div className="flex items-center space-x-4 text-xs text-gray-500">
+              {section.assignedTo && (
+                <div className="flex items-center space-x-1">
+                  <Users className="w-3 h-3" />
+                  <span>Responsável: {section.assignedTo}</span>
+                </div>
+              )}
+              {section.deadline && (
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-3 h-3" />
+                  <span>Prazo: {section.deadline}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <Progress value={section.completionPercentage} className="w-full" />
-        </div>
-
-        {/* Dependencies */}
-        {section.dependencies && section.dependencies.length > 0 && (
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">Dependências: </span>
-            {section.dependencies.join(', ')}
-          </div>
-        )}
-
-        {/* Deadline */}
-        {section.deadline && (
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">Prazo: </span>
-            {section.deadline}
-          </div>
-        )}
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Content Editor */}
-        <div className="space-y-2">
+        </CardHeader>
+        <CardContent>
           {isEditing ? (
-            <div className="space-y-2">
+            <div className="space-y-4">
               <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="min-h-[200px]"
-                placeholder="Desenvolva o conteúdo desta seção..."
+                placeholder="Digite o conteúdo desta seção..."
+                className="min-h-[120px]"
               />
               <div className="flex space-x-2">
-                <Button onClick={handleSave}>
+                <Button onClick={handleSave} size="sm">
                   <Save className="w-4 h-4 mr-2" />
                   Salvar
                 </Button>
-                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                <Button onClick={handleCancel} variant="outline" size="sm">
+                  <X className="w-4 h-4 mr-2" />
                   Cancelar
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              <div className="min-h-[100px] p-4 border rounded-lg bg-gray-50">
-                {content || 'Clique em editar para desenvolver esta seção...'}
+            <div className="space-y-4">
+              <div className="min-h-[60px] p-3 bg-gray-50 rounded-md">
+                {content || (
+                  <span className="text-gray-500 italic">
+                    Clique em editar para adicionar conteúdo...
+                  </span>
+                )}
               </div>
-              <Button onClick={() => setIsEditing(true)}>
-                Editar Seção
-              </Button>
+              <div className="flex space-x-2">
+                {section.status !== 'approved' && (
+                  <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    Editar
+                  </Button>
+                )}
+                {section.status === 'draft' && content && (
+                  <Button onClick={() => onStartVoting(section.id)} size="sm">
+                    <Users className="w-4 h-4 mr-2" />
+                    Enviar para Votação
+                  </Button>
+                )}
+              </div>
+              
+              {/* Dependencies warning */}
+              {section.dependencies && section.dependencies.length > 0 && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800">
+                    <AlertCircle className="w-4 h-4 inline mr-2" />
+                    Esta seção depende de: {section.dependencies.join(', ')}
+                  </p>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Voting Section */}
-        {section.status === 'voting' && (
-          <div className="p-4 border rounded-lg bg-yellow-50">
-            <h4 className="font-medium mb-2">Em Votação</h4>
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Aprovados: {section.votes.approved} | Rejeitados: {section.votes.rejected}
-              </div>
-              <Badge variant="outline">
-                <Vote className="w-3 h-3 mr-1" />
-                {section.votes.total} votos
-              </Badge>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowComments(!showComments)}
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Comentários ({section.comments.length})
-            </Button>
-            
-            {section.status === 'draft' && content && (
-              <Button
-                onClick={() => onStartVoting(section.id)}
-                variant="outline"
-              >
-                <Vote className="w-4 h-4 mr-2" />
-                Enviar para Votação
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Comments Section */}
-        {showComments && (
-          <CommentsSection
-            comments={section.comments}
-            onAddComment={(content, parentId) => onAddComment(section.id, content, parentId)}
-            onLikeComment={onLikeComment}
-            onResolveComment={onResolveComment}
-          />
-        )}
-      </CardContent>
-    </Card>
+      {/* Comments Section */}
+      {showComments && (
+        <CommentsSection
+          sectionId={section.id}
+          comments={section.comments}
+          onAddComment={onAddComment}
+          onLikeComment={onLikeComment}
+          onResolveComment={onResolveComment}
+        />
+      )}
+    </div>
   );
 };
 

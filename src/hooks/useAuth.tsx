@@ -25,61 +25,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    let mounted = true;
-    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session);
-        
-        if (!mounted) return;
-        
         setSession(session);
         setUser(session?.user ?? null);
-        
-        if (session?.user && event === 'SIGNED_IN') {
-          // Use setTimeout to avoid blocking the auth state change
-          setTimeout(() => {
-            if (mounted) {
-              loadUserBusinessPlan(session.user.id);
-            }
-          }, 100);
-        } else if (event === 'SIGNED_OUT') {
-          setCurrentBusinessPlan(null);
-        }
-        
         setLoading(false);
+
+        if (session?.user && event === 'SIGNED_IN') {
+          // Load or create user's business plan
+          setTimeout(() => {
+            loadUserBusinessPlan(session.user.id);
+          }, 0);
+        }
       }
     );
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
       
       if (session?.user) {
-        setTimeout(() => {
-          if (mounted) {
-            loadUserBusinessPlan(session.user.id);
-          }
-        }, 100);
-      } else {
-        setLoading(false);
+        loadUserBusinessPlan(session.user.id);
       }
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadUserBusinessPlan = async (userId: string) => {
     try {
-      console.log('Loading business plan for user:', userId);
-      
       // Check if user has any business plans
       const { data: teamMemberships, error } = await supabase
         .from('team_members')
@@ -103,32 +81,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error loading business plan:', error);
-        // If it's an RLS error or no data, try to create a default plan
-        if (error.code === 'PGRST116' || error.message.includes('row-level security')) {
-          console.log('RLS restriction or no data found, creating default business plan');
-          await createDefaultBusinessPlan(userId);
-        }
         return;
       }
 
       if (teamMemberships && teamMemberships.length > 0) {
-        console.log('Found existing business plan:', teamMemberships[0]);
         setCurrentBusinessPlan(teamMemberships[0]);
       } else {
-        console.log('No business plans found, creating default');
+        // Create default business plan for new user
         await createDefaultBusinessPlan(userId);
       }
     } catch (error) {
       console.error('Error in loadUserBusinessPlan:', error);
-      // Always try to create a default business plan as fallback
-      await createDefaultBusinessPlan(userId);
     }
   };
 
   const createDefaultBusinessPlan = async (userId: string) => {
     try {
-      console.log('Creating default business plan for user:', userId);
-      
       // Create company first
       const { data: company, error: companyError } = await supabase
         .from('companies')
@@ -144,8 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Error creating company:', companyError);
         return;
       }
-
-      console.log('Company created:', company);
 
       // Create business plan
       const { data: businessPlan, error: planError } = await supabase
@@ -164,8 +130,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      console.log('Business plan created:', businessPlan);
-
       // Add user as admin team member
       const { error: memberError } = await supabase
         .from('team_members')
@@ -180,30 +144,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      console.log('Team member added');
-
       // Create default canvas sections
       const { error: sectionsError } = await supabase
         .rpc('create_default_canvas_sections', { plan_id: businessPlan.id });
 
       if (sectionsError) {
         console.error('Error creating canvas sections:', sectionsError);
-        // Don't return here, let's still set the business plan
+        return;
       }
 
-      console.log('Canvas sections created');
-
       // Set as current business plan
-      const newBusinessPlan = {
+      setCurrentBusinessPlan({
         business_plan_id: businessPlan.id,
         role: 'admin',
         business_plans: {
           ...businessPlan,
           companies: company
         }
-      };
-      
-      setCurrentBusinessPlan(newBusinessPlan);
+      });
 
       toast({
         title: "Bem-vindo!",
@@ -211,8 +169,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error('Error creating default business plan:', error);
-      // Even if creation fails, stop loading
-      setLoading(false);
     }
   };
 
