@@ -49,7 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (session?.user) {
             console.log('User found, loading business plan...');
-            // Use setTimeout to defer the business plan loading
             setTimeout(() => {
               if (mounted) {
                 loadUserBusinessPlan(session.user.id);
@@ -80,7 +79,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user && event === 'SIGNED_IN') {
           console.log('User signed in, loading business plan...');
-          // Use setTimeout to defer the business plan loading
           setTimeout(() => {
             if (mounted) {
               loadUserBusinessPlan(session.user.id);
@@ -329,14 +327,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log('Starting logout process...');
+      setLoading(true);
+      
       await supabase.auth.signOut();
+      
+      // Limpar estados locais
       setCurrentBusinessPlan(null);
+      setUser(null);
+      setSession(null);
+      
+      console.log('Logout completed');
+      
       toast({
         title: "Logout realizado",
         description: "Você foi desconectado com sucesso.",
       });
     } catch (error) {
       console.error('Sign out error:', error);
+      setLoading(false);
     }
   };
 
