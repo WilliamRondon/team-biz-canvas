@@ -27,6 +27,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await loadUserBusinessPlan(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    getInitialSession();
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -38,37 +61,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user && event === 'SIGNED_IN') {
-          // Use setTimeout to avoid blocking the auth state change
-          setTimeout(() => {
-            if (mounted) {
-              loadUserBusinessPlan(session.user.id);
-            }
-          }, 100);
+          await loadUserBusinessPlan(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           setCurrentBusinessPlan(null);
         }
-        
-        setLoading(false);
       }
     );
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(() => {
-          if (mounted) {
-            loadUserBusinessPlan(session.user.id);
-          }
-        }, 100);
-      } else {
-        setLoading(false);
-      }
-    });
 
     return () => {
       mounted = false;
@@ -80,6 +78,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Loading business plan for user:', userId);
       
+      // First, ensure user profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error checking user profile:', profileError);
+      }
+
+      if (!profile) {
+        console.log('Creating user profile...');
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: userId,
+            full_name: 'Usuário'
+          });
+
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
+        }
+      }
+
       // Check if user has any business plans
       const { data: teamMemberships, error } = await supabase
         .from('team_members')
@@ -103,11 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error loading business plan:', error);
-        // If it's an RLS error or no data, try to create a default plan
-        if (error.code === 'PGRST116' || error.message.includes('row-level security')) {
-          console.log('RLS restriction or no data found, creating default business plan');
-          await createDefaultBusinessPlan(userId);
-        }
+        // If no business plans found, create default one
+        await createDefaultBusinessPlan(userId);
         return;
       }
 
@@ -120,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error in loadUserBusinessPlan:', error);
-      // Always try to create a default business plan as fallback
       await createDefaultBusinessPlan(userId);
     }
   };
@@ -142,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (companyError) {
         console.error('Error creating company:', companyError);
-        return;
+        throw companyError;
       }
 
       console.log('Company created:', company);
@@ -161,7 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (planError) {
         console.error('Error creating business plan:', planError);
-        return;
+        throw planError;
       }
 
       console.log('Business plan created:', businessPlan);
@@ -172,12 +191,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .insert({
           business_plan_id: businessPlan.id,
           user_id: userId,
-          role: 'admin'
+          role: 'admin',
+          status: 'active'
         });
 
       if (memberError) {
         console.error('Error adding team member:', memberError);
-        return;
+        throw memberError;
       }
 
       console.log('Team member added');
@@ -188,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (sectionsError) {
         console.error('Error creating canvas sections:', sectionsError);
-        // Don't return here, let's still set the business plan
+        // Don't throw here, let's still set the business plan
       }
 
       console.log('Canvas sections created');
@@ -211,8 +231,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error('Error creating default business plan:', error);
-      // Even if creation fails, stop loading
-      setLoading(false);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar seu workspace. Tente novamente.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -240,13 +263,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName
           }

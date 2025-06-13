@@ -371,6 +371,10 @@ export type Database = {
           sections: Json
         }[]
       }
+      user_has_access_to_business_plan: {
+        Args: { plan_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
