@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,33 +26,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     
-    // Get initial session
-    const getInitialSession = async () => {
+    const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted) return;
+        console.log('Initializing auth...');
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        // Get initial session first
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (session?.user) {
-          await loadUserBusinessPlan(session.user.id);
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        console.log('Initial session:', session);
+
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            console.log('User found, loading business plan...');
+            // Use setTimeout to defer the business plan loading
+            setTimeout(() => {
+              if (mounted) {
+                loadUserBusinessPlan(session.user.id);
+              }
+            }, 100);
+          } else {
+            console.log('No user found');
+            setLoading(false);
+          }
         }
       } catch (error) {
-        console.error('Error getting initial session:', error);
-      } finally {
+        console.error('Error in initializeAuth:', error);
         if (mounted) {
           setLoading(false);
         }
       }
     };
 
-    getInitialSession();
-
-    // Set up auth state listener
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session);
+        console.log('Auth state changed:', event, session?.user?.id);
         
         if (!mounted) return;
         
@@ -61,12 +79,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user && event === 'SIGNED_IN') {
-          await loadUserBusinessPlan(session.user.id);
+          console.log('User signed in, loading business plan...');
+          // Use setTimeout to defer the business plan loading
+          setTimeout(() => {
+            if (mounted) {
+              loadUserBusinessPlan(session.user.id);
+            }
+          }, 100);
         } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
           setCurrentBusinessPlan(null);
+          setLoading(false);
+        } else if (!session?.user) {
+          console.log('No user in session');
+          setLoading(false);
         }
       }
     );
+
+    // Initialize auth after setting up the listener
+    initializeAuth();
 
     return () => {
       mounted = false;
@@ -126,7 +158,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error loading business plan:', error);
-        // If no business plans found, create default one
         await createDefaultBusinessPlan(userId);
         return;
       }
@@ -134,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (teamMemberships && teamMemberships.length > 0) {
         console.log('Found existing business plan:', teamMemberships[0]);
         setCurrentBusinessPlan(teamMemberships[0]);
+        setLoading(false);
       } else {
         console.log('No business plans found, creating default');
         await createDefaultBusinessPlan(userId);
@@ -224,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       
       setCurrentBusinessPlan(newBusinessPlan);
+      setLoading(false);
 
       toast({
         title: "Bem-vindo!",
@@ -231,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error('Error creating default business plan:', error);
+      setLoading(false);
       toast({
         title: "Erro",
         description: "Não foi possível criar seu workspace. Tente novamente.",
