@@ -23,18 +23,19 @@ interface CanvasItem {
   status: string;
   created_by: string;
   section_id: string;
+  created_at: string;
 }
 
 interface CanvasEditorProps {
-  sections: any[];
-  onUpdateSection: (id: string, content: string) => void;
-  onStartVoting: (id: string) => void;
+  onUpdateSection?: (id: string, content: string) => void;
+  onStartVoting?: (id: string) => void;
 }
 
-const CanvasEditor = ({ sections: propSections, onUpdateSection, onStartVoting }: CanvasEditorProps) => {
+const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => {
   const [sections, setSections] = useState<CanvasSection[]>([]);
   const [items, setItems] = useState<{ [key: string]: CanvasItem[] }>({});
   const [newItemContent, setNewItemContent] = useState<{ [key: string]: string }>({});
+  const [loading, setLoading] = useState(true);
   const { currentBusinessPlan, user } = useAuth();
   const { toast } = useToast();
 
@@ -46,6 +47,8 @@ const CanvasEditor = ({ sections: propSections, onUpdateSection, onStartVoting }
 
   const loadCanvasSections = async () => {
     try {
+      setLoading(true);
+      
       const { data: sectionsData, error: sectionsError } = await supabase
         .from('canvas_sections')
         .select('*')
@@ -60,21 +63,25 @@ const CanvasEditor = ({ sections: propSections, onUpdateSection, onStartVoting }
       setSections(sectionsData || []);
 
       // Load items for each section
+      const itemsMap: { [key: string]: CanvasItem[] } = {};
+      
       for (const section of sectionsData || []) {
         const { data: itemsData, error: itemsError } = await supabase
           .from('canvas_items')
           .select('*')
-          .eq('section_id', section.id);
+          .eq('section_id', section.id)
+          .order('created_at');
 
         if (!itemsError && itemsData) {
-          setItems(prev => ({
-            ...prev,
-            [section.id]: itemsData
-          }));
+          itemsMap[section.id] = itemsData;
         }
       }
+      
+      setItems(itemsMap);
     } catch (error) {
       console.error('Error loading canvas data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -122,6 +129,39 @@ const CanvasEditor = ({ sections: propSections, onUpdateSection, onStartVoting }
     }
   };
 
+  const startVoting = async (itemId: string, sectionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('canvas_items')
+        .update({ status: 'voting' })
+        .eq('id', itemId);
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível iniciar a votação.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state
+      setItems(prev => ({
+        ...prev,
+        [sectionId]: prev[sectionId]?.map(item => 
+          item.id === itemId ? { ...item, status: 'voting' } : item
+        ) || []
+      }));
+
+      toast({
+        title: "Votação iniciada",
+        description: "O item foi enviado para votação.",
+      });
+    } catch (error) {
+      console.error('Error starting voting:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved': return 'bg-green-100 text-green-800';
@@ -139,10 +179,19 @@ const CanvasEditor = ({ sections: propSections, onUpdateSection, onStartVoting }
     }
   };
 
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p>Carregando canvas...</p>
+      </div>
+    );
+  }
+
   if (!currentBusinessPlan) {
     return (
       <div className="text-center py-8">
-        <p>Carregando canvas...</p>
+        <p>Erro: Plano de negócios não encontrado.</p>
       </div>
     );
   }
@@ -162,7 +211,7 @@ const CanvasEditor = ({ sections: propSections, onUpdateSection, onStartVoting }
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Lista de items existentes */}
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
               {items[section.id]?.map((item) => (
                 <div key={item.id} className="p-3 border rounded-lg">
                   <p className="text-sm mb-2">{item.content}</p>
@@ -171,15 +220,25 @@ const CanvasEditor = ({ sections: propSections, onUpdateSection, onStartVoting }
                       {getStatusIcon(item.status)}
                       <span className="ml-1 capitalize">{item.status}</span>
                     </Badge>
+                    {item.status === 'draft' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startVoting(item.id, section.id)}
+                      >
+                        <Vote className="w-3 h-3 mr-1" />
+                        Votar
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Adicionar novo item */}
-            <div className="space-y-2">
+            <div className="space-y-2 border-t pt-4">
               <Textarea
-                placeholder="Clique em adicionar para começar..."
+                placeholder="Adicione um novo item para esta seção..."
                 value={newItemContent[section.id] || ''}
                 onChange={(e) => setNewItemContent(prev => ({
                   ...prev,
