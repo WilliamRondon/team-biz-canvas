@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -50,26 +51,47 @@ const RealProgressDashboard = () => {
 
   const loadProgressData = useCallback(async () => {
     if (!currentBusinessPlan?.business_plan_id) {
-      console.log('No business plan found');
+      console.log('❌ No business plan found, business_plan_id:', currentBusinessPlan?.business_plan_id);
       return;
     }
 
     try {
-      console.log('Loading progress data for business plan:', currentBusinessPlan.business_plan_id);
+      console.log('🔄 Loading progress data for business plan:', currentBusinessPlan.business_plan_id);
       setLoading(true);
 
-      // Load detailed sections progress
+      // First, let's check what detailed sections exist
+      const { data: sectionsCheck, error: sectionsError } = await supabase
+        .from('detailed_sections')
+        .select('id, category, title, status')
+        .eq('business_plan_id', currentBusinessPlan.business_plan_id);
+
+      console.log('📊 Detailed sections raw data:', sectionsCheck);
+      console.log('📊 Sections error:', sectionsError);
+
+      // Load detailed sections progress using the function
       const { data: detailedData, error: detailedError } = await supabase
         .rpc('calculate_detailed_section_progress', {
           business_plan_id_param: currentBusinessPlan.business_plan_id
         });
 
+      console.log('📈 Detailed progress function result:', detailedData);
+      console.log('❌ Detailed progress error:', detailedError);
+
       if (detailedError) {
         console.error('Error loading detailed progress:', detailedError);
       } else {
-        console.log('Detailed progress data:', detailedData);
+        console.log('✅ Setting detailed progress data:', detailedData || []);
         setDetailedProgress(detailedData || []);
       }
+
+      // Check canvas sections
+      const { data: canvasSectionsCheck, error: canvasSectionsError } = await supabase
+        .from('canvas_sections')
+        .select('id, title')
+        .eq('business_plan_id', currentBusinessPlan.business_plan_id);
+
+      console.log('🎨 Canvas sections raw data:', canvasSectionsCheck);
+      console.log('❌ Canvas sections error:', canvasSectionsError);
 
       // Load canvas progress
       const { data: canvasData, error: canvasError } = await supabase
@@ -77,10 +99,13 @@ const RealProgressDashboard = () => {
           plan_id: currentBusinessPlan.business_plan_id
         });
 
+      console.log('📊 Canvas progress function result:', canvasData);
+      console.log('❌ Canvas progress error:', canvasError);
+
       if (canvasError) {
         console.error('Error loading canvas progress:', canvasError);
       } else if (canvasData && canvasData.length > 0) {
-        console.log('Canvas progress data:', canvasData[0]);
+        console.log('✅ Canvas progress data found:', canvasData[0]);
         const progressData = canvasData[0];
         setOverallProgress(progressData.overall_percentage || 0);
         
@@ -97,14 +122,18 @@ const RealProgressDashboard = () => {
                 total_items: section.total_items || 0,
                 approved_items: section.approved_items || 0
               })) as CanvasProgress[];
+            console.log('✅ Setting canvas progress:', sectionsArray);
             setCanvasProgress(sectionsArray);
           } catch (e) {
             console.error('Error parsing sections data:', e);
             setCanvasProgress([]);
           }
         } else {
+          console.log('⚠️ No sections data found in canvas progress');
           setCanvasProgress([]);
         }
+      } else {
+        console.log('⚠️ No canvas progress data returned');
       }
 
       // Load team members
@@ -113,6 +142,9 @@ const RealProgressDashboard = () => {
         .select('id, role, status, user_id')
         .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .eq('status', 'active');
+
+      console.log('👥 Team members data:', teamData);
+      console.log('❌ Team members error:', teamError);
 
       if (teamError) {
         console.error('Error loading team members:', teamError);
@@ -126,6 +158,9 @@ const RealProgressDashboard = () => {
             .from('user_profiles')
             .select('id, full_name')
             .in('id', userIds);
+
+          console.log('👤 User profiles data:', profilesData);
+          console.log('❌ User profiles error:', profilesError);
 
           if (!profilesError && profilesData) {
             userProfiles = profilesData;
@@ -142,6 +177,7 @@ const RealProgressDashboard = () => {
           };
         });
 
+        console.log('✅ Setting team members:', mappedTeamMembers);
         setTeamMembers(mappedTeamMembers);
       }
 
@@ -149,7 +185,7 @@ const RealProgressDashboard = () => {
       await loadRecentActivity();
 
     } catch (error) {
-      console.error('Error loading progress data:', error);
+      console.error('💥 Critical error loading progress data:', error);
     } finally {
       setLoading(false);
     }
@@ -159,6 +195,7 @@ const RealProgressDashboard = () => {
     if (!currentBusinessPlan?.business_plan_id) return;
 
     try {
+      console.log('🕐 Loading recent activity...');
       const activityItems: ActivityItem[] = [];
 
       // Get recent voting sessions
@@ -168,6 +205,9 @@ const RealProgressDashboard = () => {
         .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .order('created_at', { ascending: false })
         .limit(3);
+
+      console.log('🗳️ Recent voting sessions:', votingSessions);
+      console.log('❌ Voting sessions error:', votingError);
 
       if (!votingError && votingSessions) {
         votingSessions.forEach(session => {
@@ -202,6 +242,9 @@ const RealProgressDashboard = () => {
         .order('updated_at', { ascending: false })
         .limit(2);
 
+      console.log('✅ Recently approved sections:', approvedSections);
+      console.log('❌ Approved sections error:', approvedError);
+
       if (!approvedError && approvedSections) {
         approvedSections.forEach(section => {
           activityItems.push({
@@ -222,6 +265,9 @@ const RealProgressDashboard = () => {
         .order('updated_at', { ascending: false })
         .limit(2);
 
+      console.log('🎨 Recently approved canvas items:', approvedItems);
+      console.log('❌ Canvas items error:', itemsError);
+
       if (!itemsError && approvedItems) {
         approvedItems.forEach(item => {
           activityItems.push({
@@ -236,10 +282,11 @@ const RealProgressDashboard = () => {
 
       // Sort by date and take the most recent
       activityItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      console.log('✅ Setting recent activity:', activityItems.slice(0, 5));
       setRecentActivity(activityItems.slice(0, 5));
 
     } catch (error) {
-      console.error('Error loading recent activity:', error);
+      console.error('💥 Error loading recent activity:', error);
     }
   };
 
@@ -249,24 +296,35 @@ const RealProgressDashboard = () => {
 
   useEffect(() => {
     if (currentBusinessPlan?.business_plan_id) {
-      console.log('Initial load for business plan:', currentBusinessPlan.business_plan_id);
+      console.log('🚀 Initial load for business plan:', currentBusinessPlan.business_plan_id);
       loadProgressData();
+    } else {
+      console.log('⏳ Waiting for business plan to load...');
     }
   }, [currentBusinessPlan?.business_plan_id, loadProgressData]);
 
   const calculateOverallDetailedProgress = () => {
-    if (detailedProgress.length === 0) return 0;
-    return Math.round(
+    if (detailedProgress.length === 0) {
+      console.log('📊 No detailed progress data, returning 0');
+      return 0;
+    }
+    const result = Math.round(
       detailedProgress.reduce((sum, cat) => sum + cat.progress_percentage, 0) / detailedProgress.length
     );
+    console.log('📊 Calculated detailed progress:', result);
+    return result;
   };
 
   const getTotalApprovedSections = () => {
-    return detailedProgress.reduce((sum, cat) => sum + cat.approved_sections, 0);
+    const result = detailedProgress.reduce((sum, cat) => sum + cat.approved_sections, 0);
+    console.log('✅ Total approved sections:', result);
+    return result;
   };
 
   const getTotalSections = () => {
-    return detailedProgress.reduce((sum, cat) => sum + cat.total_sections, 0);
+    const result = detailedProgress.reduce((sum, cat) => sum + cat.total_sections, 0);
+    console.log('📝 Total sections:', result);
+    return result;
   };
 
   const getStatusBadge = (progress: number) => {
@@ -303,6 +361,19 @@ const RealProgressDashboard = () => {
     );
   }
 
+  const overallDetailedProgress = calculateOverallDetailedProgress();
+  const finalOverallProgress = Math.max(overallDetailedProgress, overallProgress);
+
+  console.log('🎯 Final render state:', {
+    detailedProgress: detailedProgress.length,
+    canvasProgress: canvasProgress.length,
+    teamMembers: teamMembers.length,
+    recentActivity: recentActivity.length,
+    overallProgress,
+    overallDetailedProgress,
+    finalOverallProgress
+  });
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -312,7 +383,7 @@ const RealProgressDashboard = () => {
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-8 w-8 text-green-600" />
               <div>
-                <p className="text-2xl font-bold">{Math.max(calculateOverallDetailedProgress(), overallProgress)}%</p>
+                <p className="text-2xl font-bold">{finalOverallProgress}%</p>
                 <p className="text-sm text-gray-600">Progresso Geral</p>
               </div>
             </div>
@@ -356,6 +427,26 @@ const RealProgressDashboard = () => {
         </Card>
       </div>
 
+      {/* Debug Info - Remove this after fixing */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-700">Debug Info</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm space-y-2">
+              <p><strong>Business Plan ID:</strong> {currentBusinessPlan?.business_plan_id || 'Not loaded'}</p>
+              <p><strong>Detailed Progress Items:</strong> {detailedProgress.length}</p>
+              <p><strong>Canvas Progress Items:</strong> {canvasProgress.length}</p>
+              <p><strong>Team Members:</strong> {teamMembers.length}</p>
+              <p><strong>Recent Activity:</strong> {recentActivity.length}</p>
+              <p><strong>Overall Progress:</strong> {overallProgress}%</p>
+              <p><strong>Detailed Progress:</strong> {overallDetailedProgress}%</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Business Model Canvas */}
       {canvasProgress.length > 0 && (
         <Card>
@@ -386,31 +477,40 @@ const RealProgressDashboard = () => {
 
       {/* Progress by Category */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {detailedProgress.map((category) => {
-          const status = getStatusBadge(category.progress_percentage);
-          return (
-            <Card key={category.category}>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="capitalize">{category.category}</CardTitle>
-                  <Badge className={status.color}>{status.text}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progresso</span>
-                    <span>{category.progress_percentage}%</span>
+        {detailedProgress.length > 0 ? (
+          detailedProgress.map((category) => {
+            const status = getStatusBadge(category.progress_percentage);
+            return (
+              <Card key={category.category}>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="capitalize">{category.category}</CardTitle>
+                    <Badge className={status.color}>{status.text}</Badge>
                   </div>
-                  <Progress value={category.progress_percentage} className="h-2" />
-                  <p className="text-sm text-gray-600">
-                    {category.approved_sections} de {category.total_sections} seções aprovadas
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progresso</span>
+                      <span>{category.progress_percentage}%</span>
+                    </div>
+                    <Progress value={category.progress_percentage} className="h-2" />
+                    <p className="text-sm text-gray-600">
+                      {category.approved_sections} de {category.total_sections} seções aprovadas
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          <Card className="col-span-2">
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-500">Nenhum dado de progresso disponível</p>
+              <p className="text-sm text-gray-400 mt-2">Verifique se as seções detalhadas foram criadas</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Recent Activity */}
