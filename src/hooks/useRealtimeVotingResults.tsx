@@ -8,7 +8,7 @@ export const useRealtimeVotingResults = (businessPlanId: string, onUpdate: () =>
 
     // Listen for voting session changes to detect when voting is completed
     const votingChannel = supabase
-      .channel('voting_results_changes')
+      .channel(`voting_results_changes_${businessPlanId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {

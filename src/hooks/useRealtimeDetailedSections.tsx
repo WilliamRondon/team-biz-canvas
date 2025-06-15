@@ -7,7 +7,7 @@ export const useRealtimeDetailedSections = (businessPlanId: string, onUpdate: ()
     if (!businessPlanId) return;
 
     const channel = supabase
-      .channel('detailed_sections_changes')
+      .channel(`detailed_sections_changes_${businessPlanId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {

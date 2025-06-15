@@ -7,7 +7,7 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
     if (!businessPlanId) return;
 
     const votingSessionsChannel = supabase
-      .channel('voting_sessions_changes')
+      .channel(`voting_sessions_changes_${businessPlanId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -24,7 +24,7 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
       .subscribe();
 
     const votesChannel = supabase
-      .channel('votes_changes')
+      .channel(`votes_changes_${businessPlanId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
