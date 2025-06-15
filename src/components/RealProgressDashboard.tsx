@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -48,17 +48,8 @@ const RealProgressDashboard = () => {
   const [loading, setLoading] = useState(true);
   const { currentBusinessPlan } = useAuth();
 
-  // Use realtime hooks for live updates
-  useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadProgressData);
-  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', loadProgressData);
-
-  useEffect(() => {
-    if (currentBusinessPlan?.business_plan_id) {
-      loadProgressData();
-    }
-  }, [currentBusinessPlan]);
-
-  const loadProgressData = async () => {
+  // Declare loadProgressData with useCallback before using it in hooks
+  const loadProgressData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -155,7 +146,17 @@ const RealProgressDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentBusinessPlan?.business_plan_id]);
+
+  // Use realtime hooks for live updates - now loadProgressData is properly declared
+  useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadProgressData);
+  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', loadProgressData);
+
+  useEffect(() => {
+    if (currentBusinessPlan?.business_plan_id) {
+      loadProgressData();
+    }
+  }, [currentBusinessPlan, loadProgressData]);
 
   const loadRecentActivity = async () => {
     try {
