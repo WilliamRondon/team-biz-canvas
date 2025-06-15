@@ -21,6 +21,7 @@ interface DetailedSection {
   category: string;
   progress_percentage: number;
   dependencies?: string[];
+  section_key: string;
   created_at: string;
   updated_at: string;
 }
@@ -47,162 +48,72 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     try {
       setLoading(true);
       
-      // For now, we'll create default sections if they don't exist
-      // This should be replaced with actual database queries when the detailed_sections table exists
-      const defaultSections = getDefaultSectionsForCategory(category);
-      setSections(defaultSections);
+      const { data, error } = await supabase
+        .from('detailed_sections')
+        .select('*')
+        .eq('business_plan_id', currentBusinessPlan.business_plan_id)
+        .eq('category', category)
+        .order('title');
+
+      if (error) {
+        console.error('Error loading detailed sections:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as seções.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setSections(data || []);
       
     } catch (error) {
       console.error('Error loading detailed sections:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao carregar seções.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const getDefaultSectionsForCategory = (category: string): DetailedSection[] => {
-    const sections: { [key: string]: DetailedSection[] } = {
-      conceito: [
-        {
-          id: 'resumo-executivo',
-          title: 'Resumo Executivo',
-          description: 'Visão geral do negócio',
-          content: '',
-          status: 'draft',
-          assigned_to: user?.id,
-          deadline: '15/12/2024',
-          category: 'conceito',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'missao-visao',
-          title: 'Missão, Visão e Valores',
-          description: 'Definição dos princípios da empresa',
-          content: '',
-          status: 'draft',
-          category: 'conceito',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'objetivos-estrategicos',
-          title: 'Objetivos Estratégicos',
-          description: 'Metas e objetivos de longo prazo',
-          content: '',
-          status: 'draft',
-          category: 'conceito',
-          progress_percentage: 0,
-          dependencies: ['missao-visao'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      pesquisa: [
-        {
-          id: 'analise-mercado',
-          title: 'Análise de Mercado',
-          description: 'Estudo do mercado-alvo',
-          content: '',
-          status: 'draft',
-          category: 'pesquisa',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'personas',
-          title: 'Personas de Cliente',
-          description: 'Perfil dos clientes ideais',
-          content: '',
-          status: 'draft',
-          category: 'pesquisa',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'analise-concorrencia',
-          title: 'Análise da Concorrência',
-          description: 'Estudo dos concorrentes',
-          content: '',
-          status: 'draft',
-          category: 'pesquisa',
-          progress_percentage: 0,
-          dependencies: ['analise-mercado'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      configuracao: [
-        {
-          id: 'estrutura-organizacional',
-          title: 'Estrutura Organizacional',
-          description: 'Organização da empresa',
-          content: '',
-          status: 'draft',
-          category: 'configuracao',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'plano-operacional',
-          title: 'Plano Operacional',
-          description: 'Operações do dia-a-dia',
-          content: '',
-          status: 'draft',
-          category: 'configuracao',
-          progress_percentage: 0,
-          dependencies: ['estrutura-organizacional'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      projecoes: [
-        {
-          id: 'analise-financeira',
-          title: 'Análise Financeira',
-          description: 'Projeções financeiras',
-          content: '',
-          status: 'draft',
-          category: 'projecoes',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'analise-riscos',
-          title: 'Análise de Riscos',
-          description: 'Identificação e mitigação de riscos',
-          content: '',
-          status: 'draft',
-          category: 'projecoes',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]
-    };
-
-    return sections[category] || [];
-  };
-
   const startEditing = (section: DetailedSection) => {
     setEditingSection(section.id);
-    setEditContent(section.content);
+    setEditContent(section.content || '');
   };
 
   const saveSection = async (sectionId: string) => {
     try {
-      // Update local state for now
+      const newProgressPercentage = editContent.trim() ? Math.min(100, (editContent.length / 500) * 100) : 0;
+      
+      const { error } = await supabase
+        .from('detailed_sections')
+        .update({
+          content: editContent.trim(),
+          progress_percentage: Math.round(newProgressPercentage),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sectionId);
+
+      if (error) {
+        console.error('Error saving section:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar a seção.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state
       setSections(prev => prev.map(section => 
         section.id === sectionId 
           ? { 
               ...section, 
-              content: editContent,
-              progress_percentage: editContent.trim() ? Math.min(100, section.progress_percentage + 25) : 0,
+              content: editContent.trim(),
+              progress_percentage: Math.round(newProgressPercentage),
               updated_at: new Date().toISOString()
             }
           : section
@@ -227,6 +138,21 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
   const startVoting = async (sectionId: string) => {
     try {
+      const { error } = await supabase
+        .from('detailed_sections')
+        .update({ status: 'voting' })
+        .eq('id', sectionId);
+
+      if (error) {
+        console.error('Error starting voting:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível iniciar a votação.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       setSections(prev => prev.map(section => 
         section.id === sectionId 
           ? { ...section, status: 'voting' as const }
@@ -252,9 +178,9 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
   };
 
   const canEdit = (section: DetailedSection) => {
-    if (section.dependencies) {
+    if (section.dependencies && section.dependencies.length > 0) {
       const dependentSections = sections.filter(s => 
-        section.dependencies!.some(dep => dep.includes(s.title))
+        section.dependencies!.some(dep => s.section_key === dep)
       );
       return dependentSections.every(s => s.status === 'approved' || s.progress_percentage >= 50);
     }
@@ -266,6 +192,14 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p>Carregando seções...</p>
+      </div>
+    );
+  }
+
+  if (sections.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p>Nenhuma seção encontrada para esta categoria.</p>
       </div>
     );
   }
@@ -309,7 +243,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
               <div className="text-sm text-gray-600">
                 <Clock className="w-4 h-4 inline mr-1" />
                 <span className="font-medium">Prazo: </span>
-                {section.deadline}
+                {new Date(section.deadline).toLocaleDateString('pt-BR')}
               </div>
             )}
           </CardHeader>
