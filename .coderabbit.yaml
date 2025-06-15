@@ -1,0 +1,87 @@
+# CodeRabbit Configuration - Business Plan Studio
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+
+# Instruções específicas por path
+path_instructions:
+  - path: "src/components/**/*.tsx"
+    instructions: |
+      Foque em Business Plan Studio patterns:
+      - Props TypeScript interfaces bem definidas
+      - Real-time subscription cleanup no useEffect
+      - Error boundaries para componentes colaborativos
+      - Loading states para operações assíncronas
+      - Acessibilidade para votação e comentários
+      
+  - path: "src/hooks/**/*.ts"
+    instructions: |
+      Valide padrões de real-time:
+      - Cleanup adequado de Supabase channels
+      - Memoização com useMemo/useCallback
+      - Error handling para WebSocket disconnections
+      - Types explícitos para dados colaborativos
+      
+  - path: "supabase/functions/**/*.ts"
+    instructions: |
+      Segurança e performance:
+      - Validação de user_has_access_to_business_plan()
+      - Error handling estruturado
+      - Rate limiting implementation
+      - CORS para colaboração real-time
+      
+  - path: "src/pages/**/*.tsx"
+    instructions: |
+      Páginas colaborativas:
+      - Gestão de estado real-time
+      - Presença de usuários online
+      - Navigation guards para permissões
+      - Mobile responsiveness
+
+# Rules customizadas para Business Plan Studio
+custom_rules:
+  - name: "Supabase RLS Validation"
+    pattern: "CREATE TABLE|ALTER TABLE"
+    message: "Verifique se as políticas RLS estão definidas para colaboração"
+    
+  - name: "Real-time Channel Cleanup"
+    pattern: "supabase\\.channel\\("
+    message: "Ensure proper channel cleanup in useEffect return"
+    
+  - name: "Voting Session Security"
+    pattern: "voting_session|vote"
+    message: "Validate user permissions for voting operations"
+    
+  - name: "Canvas Collaboration"
+    pattern: "canvas_item|canvas_section"
+    message: "Check real-time sync for canvas modifications"
+
+# Configurações de linguagem
+language_settings:
+  typescript:
+    prefer_interface_over_type: true
+    require_explicit_return_types: true
+    
+  react:
+    prefer_functional_components: true
+    require_key_prop_in_lists: true
+    enforce_component_naming: true
+
+# Segurança
+security:
+  enable_security_review: true
+  highlight_potential_secrets: true
+  scan_dependencies: true
+
+ignore:
+  paths:
+    - "dist/**"
+    - "build/**"
+    - "node_modules/**"
+    - ".env*"
