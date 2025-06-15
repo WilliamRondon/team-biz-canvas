@@ -9,6 +9,7 @@ import { Users, Clock, MessageSquare, Vote, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeDetailedSections } from '@/hooks/useRealtimeDetailedSections';
 
 interface DetailedSection {
   id: string;
@@ -24,6 +25,7 @@ interface DetailedSection {
   created_at: string;
   updated_at: string;
   section_key: string;
+  assigned_user_name?: string;
 }
 
 interface DetailedSectionManagerProps {
@@ -38,27 +40,32 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
   const { currentBusinessPlan, user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (currentBusinessPlan?.business_plan_id) {
-      loadDetailedSections();
-    }
-  }, [currentBusinessPlan, category]);
-
   const loadDetailedSections = async () => {
     try {
       setLoading(true);
       
+      if (!currentBusinessPlan?.business_plan_id) {
+        console.log('No business plan found');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('detailed_sections')
-        .select('*')
-        .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
+        .select(`
+          *,
+          user_profiles:assigned_to (full_name)
+        `)
+        .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .eq('category', category)
         .order('created_at');
 
       if (error) {
         console.error('Error loading detailed sections:', error);
+        
         // Se não existem seções, criar as padrão
-        if (error.code === 'PGRST116') {
+        if (error.code === 'PGRST116' || (data && data.length === 0)) {
+          console.log('Creating default sections...');
           await createDefaultSections();
           return;
         }
@@ -66,18 +73,21 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
       }
 
       if (!data || data.length === 0) {
-        // Se não há dados, criar seções padrão
+        console.log('No sections found, creating default ones...');
         await createDefaultSections();
         return;
       }
 
-      setSections(data.map(section => ({
+      console.log('Loaded detailed sections:', data);
+
+      const mappedSections = data.map(section => ({
         id: section.id,
         title: section.title,
         description: section.description || '',
         content: section.content || '',
         status: section.status as 'draft' | 'voting' | 'approved' | 'rejected',
         assigned_to: section.assigned_to,
+        assigned_user_name: section.user_profiles?.full_name || undefined,
         deadline: section.deadline ? new Date(section.deadline).toLocaleDateString('pt-BR') : undefined,
         category: section.category,
         progress_percentage: section.progress_percentage || 0,
@@ -85,7 +95,9 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         created_at: section.created_at,
         updated_at: section.updated_at,
         section_key: section.section_key
-      })));
+      }));
+
+      setSections(mappedSections);
       
     } catch (error) {
       console.error('Error loading detailed sections:', error);
@@ -101,7 +113,8 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
   const createDefaultSections = async () => {
     try {
-      // Chamar a função do banco para criar seções padrão
+      console.log('Creating default sections for business plan:', currentBusinessPlan?.business_plan_id);
+      
       const { error } = await supabase.rpc('create_default_detailed_sections', {
         plan_id: currentBusinessPlan?.business_plan_id
       });
@@ -111,12 +124,27 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         throw error;
       }
 
+      console.log('Default sections created successfully');
       // Recarregar as seções após criar
-      await loadDetailedSections();
+      setTimeout(() => loadDetailedSections(), 1000);
     } catch (error) {
       console.error('Error creating default sections:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar as seções padrão.",
+        variant: "destructive"
+      });
     }
   };
+
+  // Usar realtime para atualizações
+  useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadDetailedSections);
+
+  useEffect(() => {
+    if (currentBusinessPlan?.business_plan_id) {
+      loadDetailedSections();
+    }
+  }, [currentBusinessPlan, category]);
 
   const startEditing = (section: DetailedSection) => {
     setEditingSection(section.id);
@@ -125,11 +153,17 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
   const saveSection = async (sectionId: string) => {
     try {
+      const currentSection = sections.find(s => s.id === sectionId);
+      if (!currentSection) return;
+
+      // Calcular progresso baseado no conteúdo
+      const newProgress = editContent.trim() ? Math.min(100, Math.max(25, Math.floor(editContent.length / 50) * 25)) : 0;
+
       const { error } = await supabase
         .from('detailed_sections')
         .update({
           content: editContent,
-          progress_percentage: editContent.trim() ? Math.min(100, (sections.find(s => s.id === sectionId)?.progress_percentage || 0) + 25) : 0,
+          progress_percentage: newProgress,
           updated_at: new Date().toISOString()
         })
         .eq('id', sectionId);
@@ -145,7 +179,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
           ? { 
               ...section, 
               content: editContent,
-              progress_percentage: editContent.trim() ? Math.min(100, section.progress_percentage + 25) : 0,
+              progress_percentage: newProgress,
               updated_at: new Date().toISOString()
             }
           : section
@@ -172,7 +206,10 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     try {
       const { error } = await supabase
         .from('detailed_sections')
-        .update({ status: 'voting' })
+        .update({ 
+          status: 'voting',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', sectionId);
 
       if (error) {
@@ -209,14 +246,46 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     }
   };
 
-  const canEdit = (section: DetailedSection) => {
-    if (section.dependencies && section.dependencies.length > 0) {
-      const dependentSections = sections.filter(s => 
-        section.dependencies!.some(dep => s.section_key === dep)
-      );
-      return dependentSections.every(s => s.status === 'approved' || s.progress_percentage >= 50);
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'approved': return 'Aprovado';
+      case 'voting': return 'Em Votação';
+      case 'rejected': return 'Rejeitado';
+      default: return 'Rascunho';
     }
-    return true;
+  };
+
+  const canEdit = (section: DetailedSection) => {
+    if (!section.dependencies || section.dependencies.length === 0) {
+      return true;
+    }
+
+    // Verificar se todas as dependências estão aprovadas ou com progresso >= 50%
+    const dependentSections = sections.filter(s => 
+      section.dependencies!.includes(s.section_key)
+    );
+    
+    return dependentSections.every(s => s.status === 'approved' || s.progress_percentage >= 50);
+  };
+
+  const getDependencyStatus = (section: DetailedSection) => {
+    if (!section.dependencies || section.dependencies.length === 0) {
+      return null;
+    }
+
+    const dependentSections = sections.filter(s => 
+      section.dependencies!.includes(s.section_key)
+    );
+
+    const completedDeps = dependentSections.filter(s => 
+      s.status === 'approved' || s.progress_percentage >= 50
+    );
+
+    return {
+      completed: completedDeps.length,
+      total: dependentSections.length,
+      canEdit: completedDeps.length === dependentSections.length
+    };
   };
 
   if (loading) {
@@ -228,118 +297,134 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     );
   }
 
+  if (sections.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-600 mb-4">Nenhuma seção encontrada para a categoria "{category}"</p>
+        <Button onClick={createDefaultSections}>
+          Criar Seções Padrão
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {sections.map((section) => (
-        <Card key={section.id}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">{section.title}</CardTitle>
-              <div className="flex items-center space-x-2">
-                <Badge className={getStatusColor(section.status)}>
-                  {section.status}
-                </Badge>
-                {section.assigned_to && (
-                  <Badge variant="outline">
-                    <Users className="w-3 h-3 mr-1" />
-                    Atribuído
+      {sections.map((section) => {
+        const depStatus = getDependencyStatus(section);
+        const canEditSection = canEdit(section);
+
+        return (
+          <Card key={section.id}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl">{section.title}</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Badge className={getStatusColor(section.status)}>
+                    {getStatusText(section.status)}
                   </Badge>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Progresso</span>
-                <span>{section.progress_percentage}%</span>
-              </div>
-              <Progress value={section.progress_percentage} className="w-full" />
-            </div>
-
-            {section.dependencies && section.dependencies.length > 0 && (
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">Dependências: </span>
-                {section.dependencies.join(', ')}
-              </div>
-            )}
-
-            {section.deadline && (
-              <div className="text-sm text-gray-600">
-                <Clock className="w-4 h-4 inline mr-1" />
-                <span className="font-medium">Prazo: </span>
-                {section.deadline}
-              </div>
-            )}
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            {editingSection === section.id ? (
-              <div className="space-y-2">
-                <Textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="min-h-[200px]"
-                  placeholder="Desenvolva o conteúdo desta seção..."
-                />
-                <div className="flex space-x-2">
-                  <Button onClick={() => saveSection(section.id)}>
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar
-                  </Button>
-                  <Button variant="outline" onClick={() => setEditingSection(null)}>
-                    Cancelar
-                  </Button>
+                  {section.assigned_user_name && (
+                    <Badge variant="outline">
+                      <Users className="w-3 h-3 mr-1" />
+                      {section.assigned_user_name}
+                    </Badge>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="min-h-[100px] p-4 border rounded-lg bg-gray-50">
-                  {section.content || 'Clique em editar para desenvolver esta seção...'}
-                </div>
-                {canEdit(section) ? (
-                  <Button onClick={() => startEditing(section)}>
-                    Editar Seção
-                  </Button>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Complete as dependências antes de editar esta seção.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {section.status === 'voting' && (
-              <div className="p-4 border rounded-lg bg-yellow-50">
-                <h4 className="font-medium mb-2">Em Votação</h4>
-                <p className="text-sm text-gray-600">
-                  Esta seção está sendo avaliada pela equipe.
-                </p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <Button
-                variant="outline"
-                size="sm"
-              >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Comentários (0)
-              </Button>
               
-              {section.status === 'draft' && section.content && canEdit(section) && (
-                <Button
-                  onClick={() => startVoting(section.id)}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Vote className="w-4 h-4 mr-2" />
-                  Enviar para Votação
-                </Button>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Progresso</span>
+                  <span>{section.progress_percentage}%</span>
+                </div>
+                <Progress value={section.progress_percentage} className="w-full" />
+              </div>
+
+              {section.dependencies && section.dependencies.length > 0 && (
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Dependências: </span>
+                  <span className={depStatus?.canEdit ? 'text-green-600' : 'text-orange-600'}>
+                    {section.dependencies.join(', ')}
+                    {depStatus && ` (${depStatus.completed}/${depStatus.total} completas)`}
+                  </span>
+                </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+
+              {section.deadline && (
+                <div className="text-sm text-gray-600">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  <span className="font-medium">Prazo: </span>
+                  {section.deadline}
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {editingSection === section.id ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="min-h-[200px]"
+                    placeholder="Desenvolva o conteúdo desta seção..."
+                  />
+                  <div className="flex space-x-2">
+                    <Button onClick={() => saveSection(section.id)}>
+                      <Save className="w-4 h-4 mr-2" />
+                      Salvar
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditingSection(null)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="min-h-[100px] p-4 border rounded-lg bg-gray-50">
+                    {section.content || 'Clique em editar para desenvolver esta seção...'}
+                  </div>
+                  {canEditSection ? (
+                    <Button onClick={() => startEditing(section)}>
+                      Editar Seção
+                    </Button>
+                  ) : (
+                    <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
+                      Complete as dependências antes de editar esta seção.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {section.status === 'voting' && (
+                <div className="p-4 border rounded-lg bg-yellow-50">
+                  <h4 className="font-medium mb-2">Em Votação</h4>
+                  <p className="text-sm text-gray-600">
+                    Esta seção está sendo avaliada pela equipe.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <Button variant="outline" size="sm">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Comentários (0)
+                </Button>
+                
+                {section.status === 'draft' && section.content && canEditSection && (
+                  <Button
+                    onClick={() => startVoting(section.id)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Vote className="w-4 h-4 mr-2" />
+                    Enviar para Votação
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
