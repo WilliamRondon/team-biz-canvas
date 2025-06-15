@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, MessageSquare, Vote, CheckCircle, Lock, Edit, AlertCircle } from 'lucide-react';
+import { Plus, MessageSquare, Vote, CheckCircle, Lock, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -32,11 +33,6 @@ interface CanvasItem {
   locked_at: string | null;
 }
 
-interface CanvasEditorProps {
-  onUpdateSection?: (id: string, content: string) => void;
-  onStartVoting?: (id: string) => void;
-}
-
 interface UserPresence {
   id: string;
   full_name: string | null;
@@ -45,7 +41,7 @@ interface UserPresence {
   last_active: string;
 }
 
-const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => {
+const CanvasEditor = () => {
   const [sections, setSections] = useState<CanvasSection[]>([]);
   const [items, setItems] = useState<{ [key: string]: CanvasItem[] }>({});
   const [newItemContent, setNewItemContent] = useState<{ [key: string]: string }>({});
@@ -62,13 +58,9 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
     lockItem,
     unlockItem,
     updateCursorPosition,
-    isItemLockedByCurrentUser,
-    getItemLocker,
-    isItemLocked
-  } = useRealtimeCanvas({
-    businessPlanId: currentBusinessPlan?.business_plan_id || '',
-    userId: user?.id || '',
-    onItemInsert: (newItem) => {
+    isConnected
+  } = useRealtimeCanvas(currentBusinessPlan?.business_plan_id || '', {
+    onItemCreated: (newItem) => {
       setItems(prev => ({
         ...prev,
         [newItem.section_id || '']: [
@@ -82,7 +74,7 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
         description: "Um novo item foi adicionado à seção.",
       });
     },
-    onItemUpdate: (updatedItem) => {
+    onItemUpdated: (updatedItem) => {
       setItems(prev => ({
         ...prev,
         [updatedItem.section_id || '']: prev[updatedItem.section_id || '']?.map(item => 
@@ -90,13 +82,14 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
         ) || []
       }));
     },
-    onItemDelete: (deletedItem) => {
-      setItems(prev => ({
-        ...prev,
-        [deletedItem.section_id || '']: prev[deletedItem.section_id || '']?.filter(item => 
-          item.id !== deletedItem.id
-        ) || []
-      }));
+    onItemDeleted: (deletedItemId) => {
+      setItems(prev => {
+        const newItems = { ...prev };
+        Object.keys(newItems).forEach(sectionId => {
+          newItems[sectionId] = newItems[sectionId].filter(item => item.id !== deletedItemId);
+        });
+        return newItems;
+      });
       
       toast({
         title: "Item removido",
@@ -104,6 +97,31 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
       });
     }
   });
+
+  // Funções auxiliares para verificar bloqueios
+  const isItemLocked = (itemId: string) => {
+    const allItems = Object.values(items).flat();
+    const item = allItems.find(i => i.id === itemId);
+    return item?.locked_by !== null;
+  };
+
+  const isItemLockedByCurrentUser = (itemId: string) => {
+    const allItems = Object.values(items).flat();
+    const item = allItems.find(i => i.id === itemId);
+    return item?.locked_by === user?.id;
+  };
+
+  const getItemLocker = (itemId: string) => {
+    const allItems = Object.values(items).flat();
+    const item = allItems.find(i => i.id === itemId);
+    if (!item?.locked_by) return null;
+    
+    // Retornar dados básicos do usuário (em um caso real, você buscaria do banco)
+    return {
+      full_name: 'Usuário',
+      avatar_url: null
+    };
+  };
 
   useEffect(() => {
     if (currentBusinessPlan?.business_plan_id) {
@@ -192,8 +210,6 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
         return;
       }
 
-      // O hook useRealtimeCanvas vai atualizar o estado via onItemInsert
-      // mas atualizamos aqui também para feedback imediato
       setItems(prev => ({
         ...prev,
         [sectionId]: [...(prev[sectionId] || []), data]
@@ -214,7 +230,6 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
   };
   
   const startEditingItem = async (item: CanvasItem) => {
-    // Tenta obter o bloqueio do item
     const locked = await lockItem(item.id);
     
     if (!locked) {
@@ -251,7 +266,6 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
         return;
       }
       
-      // Libera o bloqueio do item
       await unlockItem(item.id);
       
       setEditingItem(null);
@@ -289,7 +303,6 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
         return;
       }
 
-      // Update local state
       setItems(prev => ({
         ...prev,
         [sectionId]: prev[sectionId]?.map(item => 
@@ -350,32 +363,38 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
     <div className="flex items-center space-x-2 mb-4 p-3 bg-gray-50 rounded-lg">
       <span className="text-sm font-medium">Usuários online:</span>
       <div className="flex -space-x-2">
-        {onlineUsers.map((user) => (
-          <TooltipProvider key={user.id}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Avatar className="h-8 w-8 border-2 border-white">
-                  <AvatarImage src={user.avatar_url || undefined} alt={user.full_name || 'Usuário'} />
-                  <AvatarFallback>{user.full_name?.substring(0, 2) || 'U'}</AvatarFallback>
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{user.full_name || 'Usuário'}</p>
-                <p className="text-xs text-gray-500">
-                  Ativo {formatDistanceToNow(new Date(user.last_active), { addSuffix: true, locale: ptBR })}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ))}
+        {onlineUsers.length > 0 ? (
+          onlineUsers.map((userId) => (
+            <TooltipProvider key={userId}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Avatar className="h-8 w-8 border-2 border-white">
+                    <AvatarFallback>U</AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Usuário online</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))
+        ) : (
+          <span className="text-sm text-gray-500">Nenhum usuário online</span>
+        )}
       </div>
+      {isConnected && (
+        <div className="flex items-center space-x-1">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-green-600">Conectado</span>
+        </div>
+      )}
     </div>
   );
 
   return (
     <div ref={editorRef} className="space-y-6">
       {/* Barra de presença */}
-      {onlineUsers.length > 0 && <PresenceBar />}
+      <PresenceBar />
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sections.map((section) => (
@@ -439,16 +458,10 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
                                   <TooltipTrigger asChild>
                                     <div className="flex items-center">
                                       <Lock className="w-3 h-3 text-amber-500" />
-                                      {getItemLocker(item.id)?.avatar_url && (
-                                        <Avatar className="h-5 w-5 ml-1">
-                                          <AvatarImage src={getItemLocker(item.id)?.avatar_url || undefined} />
-                                          <AvatarFallback>{getItemLocker(item.id)?.full_name?.substring(0, 2) || 'U'}</AvatarFallback>
-                                        </Avatar>
-                                      )}
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>Sendo editado por {getItemLocker(item.id)?.full_name || 'outro usuário'}</p>
+                                    <p>Item sendo editado</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>

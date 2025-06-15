@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel, RealtimePresenceState } from '@supabase/supabase-js';
@@ -45,7 +46,7 @@ export const useRealtimeCanvas = (
   businessPlanId: string,
   handlers: CanvasEventHandlers = {}
 ) => {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
   const [presenceState, setPresenceState] = useState<CanvasPresenceState>({});
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
@@ -54,28 +55,28 @@ export const useRealtimeCanvas = (
   // Função para atualizar a posição do cursor
   const updateCursorPosition = useCallback(
     (position: CanvasPresenceUser['cursor_position']) => {
-      if (!channel || !currentUser?.id || !isConnected) return;
+      if (!channel || !user?.id || !isConnected) return;
 
       channel.track({
-        user_id: currentUser.id,
+        user_id: user.id,
         business_plan_id: businessPlanId,
         online_at: new Date().toISOString(),
         cursor_position: position,
       });
     },
-    [channel, currentUser?.id, businessPlanId, isConnected]
+    [channel, user?.id, businessPlanId, isConnected]
   );
 
   // Função para bloquear um item para edição
   const lockItem = useCallback(
     async (itemId: string) => {
-      if (!currentUser?.id) return false;
+      if (!user?.id) return false;
 
       try {
         const { data, error } = await supabase
           .from('canvas_items')
           .update({
-            locked_by: currentUser.id,
+            locked_by: user.id,
             locked_at: new Date().toISOString(),
           })
           .eq('id', itemId)
@@ -93,13 +94,13 @@ export const useRealtimeCanvas = (
         return false;
       }
     },
-    [currentUser?.id]
+    [user?.id]
   );
 
   // Função para desbloquear um item
   const unlockItem = useCallback(
     async (itemId: string) => {
-      if (!currentUser?.id) return false;
+      if (!user?.id) return false;
 
       try {
         const { data, error } = await supabase
@@ -109,7 +110,7 @@ export const useRealtimeCanvas = (
             locked_at: null,
           })
           .eq('id', itemId)
-          .eq('locked_by', currentUser.id) // Garantir que apenas o usuário que bloqueou pode desbloquear
+          .eq('locked_by', user.id)
           .select()
           .single();
 
@@ -124,12 +125,12 @@ export const useRealtimeCanvas = (
         return false;
       }
     },
-    [currentUser?.id]
+    [user?.id]
   );
 
   // Configurar o canal de realtime
   useEffect(() => {
-    if (!businessPlanId || !currentUser?.id) return;
+    if (!businessPlanId || !user?.id) return;
 
     // Criar um canal específico para o canvas deste plano de negócios
     const canvasChannel = supabase.channel(
@@ -137,7 +138,7 @@ export const useRealtimeCanvas = (
       {
         config: {
           presence: {
-            key: currentUser.id,
+            key: user.id,
           },
         },
       }
@@ -217,10 +218,10 @@ export const useRealtimeCanvas = (
           setIsConnected(true);
           // Registrar presença inicial
           await canvasChannel.track({
-            user_id: currentUser.id,
+            user_id: user.id,
             business_plan_id: businessPlanId,
             online_at: new Date().toISOString(),
-            cursor_position: undefined, // Inicialmente sem posição de cursor
+            cursor_position: undefined,
           });
         } else {
           setIsConnected(false);
@@ -236,11 +237,11 @@ export const useRealtimeCanvas = (
       setChannel(null);
       setIsConnected(false);
     };
-  }, [businessPlanId, currentUser?.id, handlers]);
+  }, [businessPlanId, user?.id, handlers]);
 
   // Configurar liberação automática de bloqueios ao desconectar
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!user?.id) return;
 
     // Função para liberar todos os bloqueios do usuário atual
     const releaseAllLocks = async () => {
@@ -251,7 +252,7 @@ export const useRealtimeCanvas = (
             locked_by: null,
             locked_at: null,
           })
-          .eq('locked_by', currentUser.id);
+          .eq('locked_by', user.id);
 
         if (error) {
           console.error('Error releasing locks:', error);
@@ -267,9 +268,9 @@ export const useRealtimeCanvas = (
     // Limpar ao desmontar
     return () => {
       window.removeEventListener('beforeunload', releaseAllLocks);
-      releaseAllLocks(); // Liberar bloqueios ao desmontar o componente
+      releaseAllLocks();
     };
-  }, [currentUser?.id]);
+  }, [user?.id]);
 
   return {
     isConnected,
