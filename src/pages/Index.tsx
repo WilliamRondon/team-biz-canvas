@@ -22,7 +22,7 @@ const Index = () => {
           </div>
 
           <Tabs defaultValue="canvas" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="canvas">Business Model Canvas</TabsTrigger>
               <TabsTrigger value="voting">Centro de Votação</TabsTrigger>
               <TabsTrigger value="detailed">Plano Detalhado</TabsTrigger>

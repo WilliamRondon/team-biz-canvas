@@ -58,11 +58,29 @@ const RealVotingCenter = () => {
       }
 
       console.log('Loaded voting sessions:', data);
-      setVotingSessions(data || []);
+
+      // Map and type the data correctly
+      const mappedSessions: VotingSession[] = (data || []).map((session: any) => ({
+        id: session.id,
+        item_id: session.item_id,
+        item_type: session.item_type as 'canvas_item' | 'detailed_section',
+        title: session.title,
+        content: session.content,
+        status: session.status,
+        deadline: session.deadline,
+        total_votes: Number(session.total_votes) || 0,
+        approve_votes: Number(session.approve_votes) || 0,
+        reject_votes: Number(session.reject_votes) || 0,
+        user_vote: session.user_vote,
+        user_comment: session.user_comment,
+        created_at: session.created_at
+      }));
+
+      setVotingSessions(mappedSessions);
 
       // Initialize voting states for sessions where user hasn't voted
       const initialStates: any = {};
-      data?.forEach((session: VotingSession) => {
+      mappedSessions.forEach((session) => {
         if (!session.user_vote) {
           initialStates[session.id] = {
             selectedVote: null,
