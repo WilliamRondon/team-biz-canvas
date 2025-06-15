@@ -65,7 +65,13 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         return;
       }
 
-      setSections(data || []);
+      // Type cast the data to ensure status is properly typed
+      const typedData = (data || []).map(section => ({
+        ...section,
+        status: section.status as 'draft' | 'voting' | 'approved' | 'rejected'
+      }));
+
+      setSections(typedData);
       
     } catch (error) {
       console.error('Error loading detailed sections:', error);
