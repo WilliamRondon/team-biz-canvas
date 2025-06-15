@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,6 +52,53 @@ const CanvasEditor = () => {
   const { toast } = useToast();
   const editorRef = useRef<HTMLDivElement>(null);
   
+  // Callbacks memoizados para evitar recriação a cada renderização
+  const handleItemCreated = useCallback((newItem) => {
+    setItems(prev => ({
+      ...prev,
+      [newItem.section_id || '']: [
+        ...(prev[newItem.section_id || ''] || []),
+        newItem
+      ]
+    }));
+    
+    toast({
+      title: "Novo item adicionado",
+      description: "Um novo item foi adicionado à seção.",
+    });
+  }, [toast]);
+  
+  const handleItemUpdated = useCallback((updatedItem) => {
+    setItems(prev => ({
+      ...prev,
+      [updatedItem.section_id || '']: prev[updatedItem.section_id || '']?.map(item => 
+        item.id === updatedItem.id ? updatedItem : item
+      ) || []
+    }));
+  }, []);
+  
+  const handleItemDeleted = useCallback((deletedItemId) => {
+    setItems(prev => {
+      const newItems = { ...prev };
+      Object.keys(newItems).forEach(sectionId => {
+        newItems[sectionId] = newItems[sectionId].filter(item => item.id !== deletedItemId);
+      });
+      return newItems;
+    });
+    
+    toast({
+      title: "Item removido",
+      description: "Um item foi removido da seção.",
+    });
+  }, [toast]);
+  
+  // Objeto handlers memoizado para evitar recriação a cada renderização
+  const handlers = useMemo(() => ({
+    onItemCreated: handleItemCreated,
+    onItemUpdated: handleItemUpdated,
+    onItemDeleted: handleItemDeleted
+  }), [handleItemCreated, handleItemUpdated, handleItemDeleted]);
+  
   // Integração com o hook de realtime
   const {
     onlineUsers,
@@ -59,44 +106,7 @@ const CanvasEditor = () => {
     unlockItem,
     updateCursorPosition,
     isConnected
-  } = useRealtimeCanvas(currentBusinessPlan?.business_plan_id || '', {
-    onItemCreated: (newItem) => {
-      setItems(prev => ({
-        ...prev,
-        [newItem.section_id || '']: [
-          ...(prev[newItem.section_id || ''] || []),
-          newItem
-        ]
-      }));
-      
-      toast({
-        title: "Novo item adicionado",
-        description: "Um novo item foi adicionado à seção.",
-      });
-    },
-    onItemUpdated: (updatedItem) => {
-      setItems(prev => ({
-        ...prev,
-        [updatedItem.section_id || '']: prev[updatedItem.section_id || '']?.map(item => 
-          item.id === updatedItem.id ? updatedItem : item
-        ) || []
-      }));
-    },
-    onItemDeleted: (deletedItemId) => {
-      setItems(prev => {
-        const newItems = { ...prev };
-        Object.keys(newItems).forEach(sectionId => {
-          newItems[sectionId] = newItems[sectionId].filter(item => item.id !== deletedItemId);
-        });
-        return newItems;
-      });
-      
-      toast({
-        title: "Item removido",
-        description: "Um item foi removido da seção.",
-      });
-    }
-  });
+  } = useRealtimeCanvas(currentBusinessPlan?.business_plan_id || '', handlers);
 
   // Funções auxiliares para verificar bloqueios
   const isItemLocked = (itemId: string) => {

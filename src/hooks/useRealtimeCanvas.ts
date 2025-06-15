@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel, RealtimePresenceState } from '@supabase/supabase-js';
 import { useAuth } from '@/hooks/useAuth';
@@ -51,6 +51,14 @@ export const useRealtimeCanvas = (
   const [presenceState, setPresenceState] = useState<CanvasPresenceState>({});
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  
+  // Usar uma referência para os handlers para evitar recriação do canal
+  const handlersRef = useRef(handlers);
+  
+  // Atualizar a referência quando os handlers mudarem
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
 
   // Função para atualizar a posição do cursor
   const updateCursorPosition = useCallback(
@@ -150,7 +158,7 @@ export const useRealtimeCanvas = (
         const state = canvasChannel.presenceState() as RealtimePresenceState<CanvasPresenceUser>;
         setPresenceState(state);
         setOnlineUsers(Object.keys(state));
-        handlers.onPresenceChanged?.(state);
+        handlersRef.current.onPresenceChanged?.(state);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
         console.log('User joined canvas:', key, newPresences);
@@ -169,7 +177,7 @@ export const useRealtimeCanvas = (
         },
         (payload) => {
           console.log('Canvas item created:', payload);
-          handlers.onItemCreated?.(payload.new as CanvasItemEvent);
+          handlersRef.current.onItemCreated?.(payload.new as CanvasItemEvent);
         }
       )
       .on(
@@ -187,15 +195,15 @@ export const useRealtimeCanvas = (
 
           // Verificar se o item foi bloqueado
           if (!oldItem.locked_by && newItem.locked_by) {
-            handlers.onItemLocked?.(newItem);
+            handlersRef.current.onItemLocked?.(newItem);
           }
           // Verificar se o item foi desbloqueado
           else if (oldItem.locked_by && !newItem.locked_by) {
-            handlers.onItemUnlocked?.(newItem);
+            handlersRef.current.onItemUnlocked?.(newItem);
           }
           // Atualização normal
           else {
-            handlers.onItemUpdated?.(newItem);
+            handlersRef.current.onItemUpdated?.(newItem);
           }
         }
       )
@@ -209,7 +217,7 @@ export const useRealtimeCanvas = (
         },
         (payload) => {
           console.log('Canvas item deleted:', payload);
-          handlers.onItemDeleted?.(payload.old.id);
+          handlersRef.current.onItemDeleted?.(payload.old.id);
         }
       )
       .subscribe(async (status) => {
@@ -237,7 +245,7 @@ export const useRealtimeCanvas = (
       setChannel(null);
       setIsConnected(false);
     };
-  }, [businessPlanId, user?.id, handlers]);
+  }, [businessPlanId, user?.id]); // Removido handlers da dependência
 
   // Configurar liberação automática de bloqueios ao desconectar
   useEffect(() => {
