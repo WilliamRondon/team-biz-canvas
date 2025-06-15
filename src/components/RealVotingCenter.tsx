@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtimeVotingSessions } from '@/hooks/useRealtimeVotingSessions';
-import { useRealtimeVotingResults } from '@/hooks/useRealtimeVotingResults';
 
 interface VotingSession {
   id: string;
@@ -88,9 +87,8 @@ const RealVotingCenter = () => {
     }
   }, [currentBusinessPlan?.business_plan_id, toast]);
 
-  // Use realtime for updates including voting results
+  // Use only one realtime hook to avoid channel conflicts
   useRealtimeVotingSessions(currentBusinessPlan?.business_plan_id || '', loadVotingSessions);
-  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', loadVotingSessions);
 
   useEffect(() => {
     if (currentBusinessPlan?.business_plan_id) {
