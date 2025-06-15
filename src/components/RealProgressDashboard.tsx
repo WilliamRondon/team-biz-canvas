@@ -48,32 +48,39 @@ const RealProgressDashboard = () => {
   const [loading, setLoading] = useState(true);
   const { currentBusinessPlan } = useAuth();
 
-  // Declare loadProgressData with useCallback before using it in hooks
   const loadProgressData = useCallback(async () => {
+    if (!currentBusinessPlan?.business_plan_id) {
+      console.log('No business plan found');
+      return;
+    }
+
     try {
+      console.log('Loading progress data for business plan:', currentBusinessPlan.business_plan_id);
       setLoading(true);
 
       // Load detailed sections progress
       const { data: detailedData, error: detailedError } = await supabase
         .rpc('calculate_detailed_section_progress', {
-          business_plan_id_param: currentBusinessPlan?.business_plan_id
+          business_plan_id_param: currentBusinessPlan.business_plan_id
         });
 
       if (detailedError) {
         console.error('Error loading detailed progress:', detailedError);
       } else {
+        console.log('Detailed progress data:', detailedData);
         setDetailedProgress(detailedData || []);
       }
 
       // Load canvas progress
       const { data: canvasData, error: canvasError } = await supabase
         .rpc('get_business_plan_progress', {
-          plan_id: currentBusinessPlan?.business_plan_id
+          plan_id: currentBusinessPlan.business_plan_id
         });
 
       if (canvasError) {
         console.error('Error loading canvas progress:', canvasError);
       } else if (canvasData && canvasData.length > 0) {
+        console.log('Canvas progress data:', canvasData[0]);
         const progressData = canvasData[0];
         setOverallProgress(progressData.overall_percentage || 0);
         
@@ -104,7 +111,7 @@ const RealProgressDashboard = () => {
       const { data: teamData, error: teamError } = await supabase
         .from('team_members')
         .select('id, role, status, user_id')
-        .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
+        .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .eq('status', 'active');
 
       if (teamError) {
@@ -148,17 +155,9 @@ const RealProgressDashboard = () => {
     }
   }, [currentBusinessPlan?.business_plan_id]);
 
-  // Use realtime hooks for live updates - now loadProgressData is properly declared
-  useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadProgressData);
-  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', loadProgressData);
-
-  useEffect(() => {
-    if (currentBusinessPlan?.business_plan_id) {
-      loadProgressData();
-    }
-  }, [currentBusinessPlan, loadProgressData]);
-
   const loadRecentActivity = async () => {
+    if (!currentBusinessPlan?.business_plan_id) return;
+
     try {
       const activityItems: ActivityItem[] = [];
 
@@ -166,7 +165,7 @@ const RealProgressDashboard = () => {
       const { data: votingSessions, error: votingError } = await supabase
         .from('voting_sessions')
         .select('id, title, created_at, status, created_by, user_profiles(full_name)')
-        .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
+        .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .order('created_at', { ascending: false })
         .limit(3);
 
@@ -198,7 +197,7 @@ const RealProgressDashboard = () => {
       const { data: approvedSections, error: approvedError } = await supabase
         .from('detailed_sections')
         .select('id, title, updated_at')
-        .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
+        .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .eq('status', 'approved')
         .order('updated_at', { ascending: false })
         .limit(2);
@@ -243,6 +242,17 @@ const RealProgressDashboard = () => {
       console.error('Error loading recent activity:', error);
     }
   };
+
+  // Use realtime hooks with proper callback
+  useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadProgressData);
+  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', loadProgressData);
+
+  useEffect(() => {
+    if (currentBusinessPlan?.business_plan_id) {
+      console.log('Initial load for business plan:', currentBusinessPlan.business_plan_id);
+      loadProgressData();
+    }
+  }, [currentBusinessPlan?.business_plan_id, loadProgressData]);
 
   const calculateOverallDetailedProgress = () => {
     if (detailedProgress.length === 0) return 0;
