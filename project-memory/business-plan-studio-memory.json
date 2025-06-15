@@ -1,4 +1,5 @@
-[
+{
+  "entities": [
     {
       "name": "Business_Plan_Studio",
       "entityType": "project",
@@ -22,7 +23,7 @@
         "Canal real-time: canvas-collaboration:{business_plan_id}",
         "Pronto para testes de colaboração em tempo real"
       ]
-    }
+    },
     {
       "name": "Voting_System",
       "entityType": "feature",
@@ -46,7 +47,7 @@
         "RLS policies necessárias para segurança de bloqueio",
         "Extensões ativas: pg_graphql, pgcrypto, uuid-ossp"
       ]
-    }
+    },
     {
       "name": "Authentication_System",
       "entityType": "feature",
@@ -69,7 +70,7 @@
         "Estado: Implementado e pronto para uso - schema de bloqueio disponível",
         "Funções principais: lockItem, unlockItem, handlePresence"
       ]
-    }
+    },
     {
       "name": "CanvasEditor",
       "entityType": "component",
@@ -132,19 +133,20 @@
       "relationType": "includes_feature"
     },
     {
-       "from": "Business_Plan_Studio",
-       "to": "Authentication_System",
-       "relationType": "includes_feature"
-     },
-     {
-       "from": "Canvas_Collaboration",
-       "to": "useRealtimeCanvas",
-       "relationType": "implemented_by"
-     },
-     {
-       "from": "Canvas_Collaboration",
-       "to": "CanvasEditor",
-       "relationType": "uses_component"
-     }
-   ]
+      "from": "Business_Plan_Studio",
+      "to": "Authentication_System",
+      "relationType": "includes_feature"
+    },
+    {
+      "from": "Canvas_Collaboration",
+      "to": "useRealtimeCanvas",
+      "relationType": "implemented_by"
+    },
+    {
+      "from": "Canvas_Collaboration",
+      "to": "CanvasEditor",
+      "relationType": "uses_component"
+    }
+  ]
+}
   
