@@ -23,6 +23,7 @@ interface DetailedSection {
   dependencies?: string[];
   created_at: string;
   updated_at: string;
+  section_key: string;
 }
 
 interface DetailedSectionManagerProps {
@@ -47,146 +48,74 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     try {
       setLoading(true);
       
-      // For now, we'll create default sections if they don't exist
-      // This should be replaced with actual database queries when the detailed_sections table exists
-      const defaultSections = getDefaultSectionsForCategory(category);
-      setSections(defaultSections);
+      const { data, error } = await supabase
+        .from('detailed_sections')
+        .select('*')
+        .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
+        .eq('category', category)
+        .order('created_at');
+
+      if (error) {
+        console.error('Error loading detailed sections:', error);
+        // Se não existem seções, criar as padrão
+        if (error.code === 'PGRST116') {
+          await createDefaultSections();
+          return;
+        }
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        // Se não há dados, criar seções padrão
+        await createDefaultSections();
+        return;
+      }
+
+      setSections(data.map(section => ({
+        id: section.id,
+        title: section.title,
+        description: section.description || '',
+        content: section.content || '',
+        status: section.status as 'draft' | 'voting' | 'approved' | 'rejected',
+        assigned_to: section.assigned_to,
+        deadline: section.deadline ? new Date(section.deadline).toLocaleDateString('pt-BR') : undefined,
+        category: section.category,
+        progress_percentage: section.progress_percentage || 0,
+        dependencies: section.dependencies,
+        created_at: section.created_at,
+        updated_at: section.updated_at,
+        section_key: section.section_key
+      })));
       
     } catch (error) {
       console.error('Error loading detailed sections:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as seções.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const getDefaultSectionsForCategory = (category: string): DetailedSection[] => {
-    const sections: { [key: string]: DetailedSection[] } = {
-      conceito: [
-        {
-          id: 'resumo-executivo',
-          title: 'Resumo Executivo',
-          description: 'Visão geral do negócio',
-          content: '',
-          status: 'draft',
-          assigned_to: user?.id,
-          deadline: '15/12/2024',
-          category: 'conceito',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'missao-visao',
-          title: 'Missão, Visão e Valores',
-          description: 'Definição dos princípios da empresa',
-          content: '',
-          status: 'draft',
-          category: 'conceito',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'objetivos-estrategicos',
-          title: 'Objetivos Estratégicos',
-          description: 'Metas e objetivos de longo prazo',
-          content: '',
-          status: 'draft',
-          category: 'conceito',
-          progress_percentage: 0,
-          dependencies: ['missao-visao'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      pesquisa: [
-        {
-          id: 'analise-mercado',
-          title: 'Análise de Mercado',
-          description: 'Estudo do mercado-alvo',
-          content: '',
-          status: 'draft',
-          category: 'pesquisa',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'personas',
-          title: 'Personas de Cliente',
-          description: 'Perfil dos clientes ideais',
-          content: '',
-          status: 'draft',
-          category: 'pesquisa',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'analise-concorrencia',
-          title: 'Análise da Concorrência',
-          description: 'Estudo dos concorrentes',
-          content: '',
-          status: 'draft',
-          category: 'pesquisa',
-          progress_percentage: 0,
-          dependencies: ['analise-mercado'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      configuracao: [
-        {
-          id: 'estrutura-organizacional',
-          title: 'Estrutura Organizacional',
-          description: 'Organização da empresa',
-          content: '',
-          status: 'draft',
-          category: 'configuracao',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'plano-operacional',
-          title: 'Plano Operacional',
-          description: 'Operações do dia-a-dia',
-          content: '',
-          status: 'draft',
-          category: 'configuracao',
-          progress_percentage: 0,
-          dependencies: ['estrutura-organizacional'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      projecoes: [
-        {
-          id: 'analise-financeira',
-          title: 'Análise Financeira',
-          description: 'Projeções financeiras',
-          content: '',
-          status: 'draft',
-          category: 'projecoes',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'analise-riscos',
-          title: 'Análise de Riscos',
-          description: 'Identificação e mitigação de riscos',
-          content: '',
-          status: 'draft',
-          category: 'projecoes',
-          progress_percentage: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]
-    };
+  const createDefaultSections = async () => {
+    try {
+      // Chamar a função do banco para criar seções padrão
+      const { error } = await supabase.rpc('create_default_detailed_sections', {
+        plan_id: currentBusinessPlan?.business_plan_id
+      });
 
-    return sections[category] || [];
+      if (error) {
+        console.error('Error creating default sections:', error);
+        throw error;
+      }
+
+      // Recarregar as seções após criar
+      await loadDetailedSections();
+    } catch (error) {
+      console.error('Error creating default sections:', error);
+    }
   };
 
   const startEditing = (section: DetailedSection) => {
@@ -196,7 +125,21 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
   const saveSection = async (sectionId: string) => {
     try {
-      // Update local state for now
+      const { error } = await supabase
+        .from('detailed_sections')
+        .update({
+          content: editContent,
+          progress_percentage: editContent.trim() ? Math.min(100, (sections.find(s => s.id === sectionId)?.progress_percentage || 0) + 25) : 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sectionId);
+
+      if (error) {
+        console.error('Error saving section:', error);
+        throw error;
+      }
+
+      // Atualizar estado local
       setSections(prev => prev.map(section => 
         section.id === sectionId 
           ? { 
@@ -227,6 +170,16 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
   const startVoting = async (sectionId: string) => {
     try {
+      const { error } = await supabase
+        .from('detailed_sections')
+        .update({ status: 'voting' })
+        .eq('id', sectionId);
+
+      if (error) {
+        console.error('Error starting voting:', error);
+        throw error;
+      }
+
       setSections(prev => prev.map(section => 
         section.id === sectionId 
           ? { ...section, status: 'voting' as const }
@@ -239,6 +192,11 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
       });
     } catch (error) {
       console.error('Error starting voting:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível iniciar a votação.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -252,9 +210,9 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
   };
 
   const canEdit = (section: DetailedSection) => {
-    if (section.dependencies) {
+    if (section.dependencies && section.dependencies.length > 0) {
       const dependentSections = sections.filter(s => 
-        section.dependencies!.some(dep => dep.includes(s.title))
+        section.dependencies!.some(dep => s.section_key === dep)
       );
       return dependentSections.every(s => s.status === 'approved' || s.progress_percentage >= 50);
     }
