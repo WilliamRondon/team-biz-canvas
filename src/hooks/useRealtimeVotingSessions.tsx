@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () => void) => {
   // Use ref to store the callback to avoid it being a dependency
   const onUpdateRef = useRef(onUpdate);
+  const channelsRef = useRef<any[]>([]);
   
   // Update ref when callback changes
   useEffect(() => {
@@ -13,6 +14,12 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
 
   useEffect(() => {
     if (!businessPlanId) return;
+
+    // Clean up any existing channels first
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel);
+    });
+    channelsRef.current = [];
 
     // Use static channel names instead of dynamic ones with Date.now()
     const votingSessionsChannel = supabase
@@ -29,8 +36,7 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
           console.log('Voting sessions changed:', payload);
           onUpdateRef.current();
         }
-      )
-      .subscribe();
+      );
 
     const votesChannel = supabase
       .channel(`votes_${businessPlanId}`)
@@ -45,12 +51,20 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
           console.log('Votes changed:', payload);
           onUpdateRef.current();
         }
-      )
-      .subscribe();
+      );
+
+    // Subscribe to channels
+    votingSessionsChannel.subscribe();
+    votesChannel.subscribe();
+
+    // Store channels in ref for cleanup
+    channelsRef.current = [votingSessionsChannel, votesChannel];
 
     return () => {
-      supabase.removeChannel(votingSessionsChannel);
-      supabase.removeChannel(votesChannel);
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
     };
   }, [businessPlanId]); // Only depend on businessPlanId
 };
