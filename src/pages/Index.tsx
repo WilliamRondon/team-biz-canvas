@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +7,7 @@ import DetailedSectionManager from '@/components/DetailedSectionManager';
 import VotingInterface from '@/components/VotingInterface';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import TeamManagement from '@/components/TeamManagement';
+import RealVotingCenter from '@/components/RealVotingCenter';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtime, useRealtimeCanvasItems } from '@/hooks/useRealtime';
 
@@ -27,16 +27,16 @@ const Index = () => {
 
   useRealtimeCanvasItems(currentBusinessPlan?.business_plan_id, refreshCanvasData);
 
-  // Mock voting sections for demonstration - these should come from database
-  const votingSections = [
-    {
-      id: 'customer-relationships',
-      title: 'Relacionamento com Clientes',
-      content: 'Estabeleceremos relacionamentos próximos através de suporte personalizado, consultoria especializada e programas de fidelidade.',
-      votes: { approved: 2, rejected: 1, total: 3 },
-      deadline: '15/12/2024'
-    }
-  ];
+  // Remove the mock voting sections completely
+  // const votingSections = [
+  //   {
+  //     id: 'customer-relationships',
+  //     title: 'Relacionamento com Clientes',
+  //     content: 'Estabeleceremos relacionamentos próximos através de suporte personalizado, consultoria especializada e programas de fidelidade.',
+  //     votes: { approved: 2, rejected: 1, total: 3 },
+  //     deadline: '15/12/2024'
+  //   }
+  // ];
 
   // Enhanced progress data - should be calculated from real data
   const projectStats = {
@@ -289,7 +289,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Voting View */}
+        {/* Voting View - Updated to use RealVotingCenter */}
         {activeSection === 'votacao' && (
           <div className="space-y-4 sm:space-y-6">
             <div className="text-center mb-6 sm:mb-8">
@@ -299,27 +299,7 @@ const Index = () => {
               </p>
             </div>
 
-            {votingSections.length > 0 ? (
-              <div className="space-y-3 sm:space-y-4">
-                {votingSections.map((section) => (
-                  <VotingInterface
-                    key={section.id}
-                    section={section}
-                    onVote={handleVote}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="text-center py-12 sm:py-16">
-                  <Vote className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Nenhuma votação pendente</h3>
-                  <p className="text-gray-600 text-sm sm:text-base px-4">
-                    Quando a equipe submeter seções para aprovação, elas aparecerão aqui.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+            <RealVotingCenter />
           </div>
         )}
 

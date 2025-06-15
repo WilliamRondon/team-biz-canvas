@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -131,12 +130,13 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
 
   const startVoting = async (itemId: string, sectionId: string) => {
     try {
-      const { error } = await supabase
-        .from('canvas_items')
-        .update({ status: 'voting' })
-        .eq('id', itemId);
+      const { data: sessionId, error } = await supabase
+        .rpc('create_voting_session_from_canvas_item', {
+          item_id_param: itemId
+        });
 
       if (error) {
+        console.error('Error starting voting:', error);
         toast({
           title: "Erro",
           description: "Não foi possível iniciar a votação.",
@@ -159,6 +159,11 @@ const CanvasEditor = ({ onUpdateSection, onStartVoting }: CanvasEditorProps) => 
       });
     } catch (error) {
       console.error('Error starting voting:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível iniciar a votação.",
+        variant: "destructive"
+      });
     }
   };
 
