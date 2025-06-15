@@ -45,12 +45,13 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="canvas">Canvas</TabsTrigger>
             <TabsTrigger value="detailed">Plano Detalhado</TabsTrigger>
             <TabsTrigger value="voting">Votação</TabsTrigger>
             <TabsTrigger value="progress">Progresso</TabsTrigger>
             <TabsTrigger value="team">Equipe</TabsTrigger>
+            <TabsTrigger value="approval">Aprovação</TabsTrigger>
           </TabsList>
 
           <TabsContent value="canvas" className="mt-6">
@@ -143,6 +144,30 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <TeamManagement />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="approval" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Seções Aprovadas</CardTitle>
+                <p className="text-gray-600">
+                  Esta área mostrará todas as seções finalizadas e aprovadas pela equipe.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Seções Aprovadas</h3>
+                  <p className="text-gray-600 mb-4">
+                    Esta área mostrará todas as seções finalizadas e aprovadas pela equipe.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
