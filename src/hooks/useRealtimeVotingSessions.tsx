@@ -1,83 +1,88 @@
 
-import { useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { supabase } from '../integrations/supabase/client';
+import { RealtimeChannel } from '@supabase/supabase-js';
+import { VotingSession } from '../types/voting';
 
-export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () => void) => {
-  // Use ref to store the callback to avoid it being a dependency
+interface UseRealtimeVotingSessionsProps {
+  businessPlanId: string;
+  onUpdate?: () => void;
+}
+
+interface VoteCountsResult {
+  approve_votes: number;
+  reject_votes: number;
+  total_votes: number;
+}
+
+export function useRealtimeVotingSessions(businessPlanId: string, onUpdate?: () => void) {
+  const [votingSessions, setVotingSessions] = useState<VotingSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [activeTeamMembers, setActiveTeamMembers] = useState(0);
+
+  // Use refs to avoid stale closures in event handlers
   const onUpdateRef = useRef(onUpdate);
-  const channelsRef = useRef<any[]>([]);
+  const votingSessionsChannelRef = useRef<RealtimeChannel | null>(null);
+  const votesChannelRef = useRef<RealtimeChannel | null>(null);
   
-  // Update ref when callback changes
+  // Update ref when prop changes
   useEffect(() => {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
+  // Fetch active team members count
   useEffect(() => {
-    if (!businessPlanId) return;
+    async function fetchActiveTeamMembers() {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('business_plan_id', businessPlanId)
+        .eq('status', 'active');
 
-    // Clean up any existing channels first
-    channelsRef.current.forEach(channel => {
-      supabase.removeChannel(channel);
-    });
-    channelsRef.current = [];
+      if (error) {
+        console.error('Error fetching team members:', error);
+        return;
+      }
 
-    // Use static channel names instead of dynamic ones with Date.now()
-    const votingSessionsChannel = supabase
-      .channel(`voting_sessions_${businessPlanId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'voting_sessions',
-          filter: `business_plan_id=eq.${businessPlanId}`,
-        },
-        (payload) => {
-          console.log('Voting sessions changed:', payload);
-          onUpdateRef.current();
-        }
-      );
+      setActiveTeamMembers(data.length);
+    }
 
-    const votesChannel = supabase
-      .channel(`votes_${businessPlanId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'votes',
-        },
-        async (payload) => {
-          console.log('Votes changed:', payload);
-          
-          // Check if this vote completes the voting session
-          if (payload.eventType === 'INSERT') {
-            await checkAndCompleteVoting(payload.new.voting_session_id);
-          }
-          
-          onUpdateRef.current();
-        }
-      );
+    fetchActiveTeamMembers();
+  }, [businessPlanId]);
 
-    // Subscribe to channels
-    votingSessionsChannel.subscribe();
-    votesChannel.subscribe();
+  // Fetch voting sessions
+  useEffect(() => {
+    async function fetchVotingSessions() {
+      setLoading(true);
+      setError(null);
 
-    // Store channels in ref for cleanup
-    channelsRef.current = [votingSessionsChannel, votesChannel];
+      try {
+        const { data, error } = await supabase
+          .rpc('get_voting_sessions_with_counts', { business_plan_id_param: businessPlanId });
 
-    return () => {
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel);
-      });
-      channelsRef.current = [];
-    };
-  }, [businessPlanId]); // Only depend on businessPlanId
-};
+        if (error) throw error;
+        
+        // Adicionar o business_plan_id aos dados retornados
+        const sessionsWithBusinessPlanId = (data || []).map(session => ({
+          ...session,
+          business_plan_id: businessPlanId
+        }));
+        
+        setVotingSessions(sessionsWithBusinessPlanId);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Unknown error'));
+        console.error('Error fetching voting sessions:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-const processVotingResults = async (votingSessionId: string) => {
-  try {
-    // Get voting session details and vote counts
+    fetchVotingSessions();
+  }, [businessPlanId]);
+
+  // Process voting results
+  async function processVotingResults(votingSessionId: string) {
     const { data: sessionData, error: sessionError } = await supabase
       .from('voting_sessions')
       .select('item_id, item_type')
@@ -89,19 +94,17 @@ const processVotingResults = async (votingSessionId: string) => {
       return;
     }
 
-    const { data: voteCounts, error: voteError } = await supabase
-      .from('votes')
-      .select('vote_type')
-      .eq('voting_session_id', votingSessionId);
+    const { data: counts, error: voteError } = await supabase
+      .rpc('get_vote_counts', { voting_session_id_param: votingSessionId });
 
-    if (voteError) {
+    if (voteError || !counts) {
       console.error('Error getting vote counts:', voteError);
       return;
     }
 
-    const approveVotes = voteCounts.filter(v => v.vote_type === 'approve').length;
-    const rejectVotes = voteCounts.filter(v => v.vote_type === 'reject').length;
-    const totalVotes = voteCounts.length;
+    const approveVotes = Number(counts.approve_votes) || 0;
+    const rejectVotes = Number(counts.reject_votes) || 0;
+    const totalVotes = approveVotes + rejectVotes;
 
     // Determine if approved (simple majority for now)
     const isApproved = approveVotes > rejectVotes && totalVotes >= 1;
@@ -135,54 +138,79 @@ const processVotingResults = async (votingSessionId: string) => {
       }
     }
 
-    console.log(`Item ${sessionData.item_id} ${newStatus} based on voting results`);
-
-  } catch (error) {
-    console.error('Error processing voting results:', error);
-  }
-};
-
-const checkAndCompleteVoting = async (votingSessionId: string) => {
-  try {
-    // Get total team members for this business plan
-    const { data: sessionData } = await supabase
+    // Update voting session status
+    const { error: sessionUpdateError } = await supabase
       .from('voting_sessions')
-      .select('business_plan_id')
-      .eq('id', votingSessionId)
-      .single();
+      .update({ 
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', votingSessionId);
 
-    if (!sessionData) return;
+    if (sessionUpdateError) {
+      console.error('Error updating voting session:', sessionUpdateError);
+    }
+  }
 
-    const { data: teamMembers } = await supabase
-      .from('team_members')
-      .select('id')
-      .eq('business_plan_id', sessionData.business_plan_id)
-      .eq('status', 'active');
-
-    const { data: votes } = await supabase
+  // Check if voting should be completed
+  const checkAndCompleteVoting = useCallback(async (votingSessionId: string) => {
+    const { data: votes, error: votesError } = await supabase
       .from('votes')
       .select('id')
       .eq('voting_session_id', votingSessionId);
 
-    const totalTeamMembers = teamMembers?.length || 1;
-    const totalVotes = votes?.length || 0;
-
-    // Complete voting if all team members have voted or if we have enough votes
-    if (totalVotes >= totalTeamMembers || totalVotes >= 1) {
-      const { error } = await supabase
-        .from('voting_sessions')
-        .update({ 
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', votingSessionId);
-
-      if (!error) {
-        await processVotingResults(votingSessionId);
-      }
+    if (votesError) {
+      console.error('Error checking votes:', votesError);
+      return;
     }
 
-  } catch (error) {
-    console.error('Error checking voting completion:', error);
-  }
-};
+    // If all active team members have voted, complete the voting
+    if (votes && votes.length >= activeTeamMembers && activeTeamMembers > 0) {
+      await processVotingResults(votingSessionId);
+    }
+  }, [activeTeamMembers]);
+
+  // Set up realtime subscriptions
+  useEffect(() => {
+    // Subscribe to voting_sessions table
+    const votingSessionsChannel = supabase
+      .channel('voting_sessions_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'voting_sessions',
+        filter: `business_plan_id=eq.${businessPlanId}`
+      }, (payload) => {
+        console.log('Voting session changed:', payload);
+        if (onUpdateRef.current) onUpdateRef.current();
+      })
+      .subscribe();
+
+    // Subscribe to votes table
+    const votesChannel = supabase
+      .channel('votes_changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'votes'
+      }, (payload) => {
+        console.log('New vote:', payload);
+        // Check if this vote completes the voting process
+        if (payload.new && payload.new.voting_session_id) {
+          checkAndCompleteVoting(payload.new.voting_session_id);
+        }
+        if (onUpdateRef.current) onUpdateRef.current();
+      })
+      .subscribe();
+
+    votingSessionsChannelRef.current = votingSessionsChannel;
+    votesChannelRef.current = votesChannel;
+
+    return () => {
+      votingSessionsChannel.unsubscribe();
+      votesChannel.unsubscribe();
+    };
+  }, [businessPlanId, checkAndCompleteVoting]);
+
+  return { votingSessions, loading, error };
+}

@@ -563,6 +563,14 @@ export type Database = {
           created_at: string
         }[]
       }
+      get_vote_counts: {
+        Args: { voting_session_id_param: string }
+        Returns: {
+          approve_votes: number
+          reject_votes: number
+          total_votes: number
+        }
+      }
       user_can_lock_canvas_item: {
         Args: { item_id: string }
         Returns: boolean
