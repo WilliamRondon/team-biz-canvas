@@ -29,10 +29,20 @@ interface TeamMember {
   user_name?: string;
 }
 
+interface ActivityItem {
+  id: string;
+  type: 'section_approved' | 'voting_started' | 'comment_added';
+  title: string;
+  description: string;
+  created_at: string;
+  user_name?: string;
+}
+
 const RealProgressDashboard = () => {
   const [detailedProgress, setDetailedProgress] = useState<ProgressData[]>([]);
   const [canvasProgress, setCanvasProgress] = useState<CanvasProgress[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [overallProgress, setOverallProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const { currentBusinessPlan } = useAuth();
@@ -132,10 +142,88 @@ const RealProgressDashboard = () => {
         setTeamMembers(mappedTeamMembers);
       }
 
+      // Load recent activity from real data
+      await loadRecentActivity();
+
     } catch (error) {
       console.error('Error loading progress data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      const activityItems: ActivityItem[] = [];
+
+      // Get recent voting sessions
+      const { data: votingSessions, error: votingError } = await supabase
+        .from('voting_sessions')
+        .select('id, title, created_at, created_by, user_profiles(full_name)')
+        .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (!votingError && votingSessions) {
+        votingSessions.forEach(session => {
+          activityItems.push({
+            id: `voting-${session.id}`,
+            type: 'voting_started',
+            title: 'Nova votação iniciada',
+            description: `Votação iniciada para "${session.title}"`,
+            created_at: session.created_at,
+            user_name: (session as any).user_profiles?.full_name
+          });
+        });
+      }
+
+      // Get recently approved sections
+      const { data: approvedSections, error: approvedError } = await supabase
+        .from('detailed_sections')
+        .select('id, title, updated_at')
+        .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
+        .eq('status', 'approved')
+        .order('updated_at', { ascending: false })
+        .limit(2);
+
+      if (!approvedError && approvedSections) {
+        approvedSections.forEach(section => {
+          activityItems.push({
+            id: `approved-${section.id}`,
+            type: 'section_approved',
+            title: 'Seção aprovada',
+            description: `Seção "${section.title}" foi aprovada`,
+            created_at: section.updated_at
+          });
+        });
+      }
+
+      // Get recently approved canvas items
+      const { data: approvedItems, error: itemsError } = await supabase
+        .from('canvas_items')
+        .select('id, content, updated_at, canvas_sections(title)')
+        .eq('status', 'approved')
+        .order('updated_at', { ascending: false })
+        .limit(2);
+
+      if (!itemsError && approvedItems) {
+        approvedItems.forEach(item => {
+          activityItems.push({
+            id: `canvas-approved-${item.id}`,
+            type: 'section_approved',
+            title: 'Item do Canvas aprovado',
+            description: `Item "${item.content}" em "${(item as any).canvas_sections?.title}" foi aprovado`,
+            created_at: item.updated_at
+          });
+        });
+      }
+
+      // Sort by date and take the most recent
+      activityItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setRecentActivity(activityItems.slice(0, 5));
+
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
     }
   };
 
@@ -161,6 +249,24 @@ const RealProgressDashboard = () => {
     return { variant: 'outline', text: 'Rascunho', color: 'bg-gray-100 text-gray-800' };
   };
 
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? 'minuto' : 'minutos'} atrás`;
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? 'hora' : 'horas'} atrás`;
+    }
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} ${diffInDays === 1 ? 'dia' : 'dias'} atrás`;
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -179,7 +285,7 @@ const RealProgressDashboard = () => {
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-8 w-8 text-green-600" />
               <div>
-                <p className="text-2xl font-bold">{calculateOverallDetailedProgress()}%</p>
+                <p className="text-2xl font-bold">{Math.max(calculateOverallDetailedProgress(), overallProgress)}%</p>
                 <p className="text-sm text-gray-600">Progresso Geral</p>
               </div>
             </div>
@@ -287,21 +393,24 @@ const RealProgressDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm">Dados carregados do banco de dados em tempo real</span>
-              <span className="text-xs text-gray-500">agora</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="text-sm">Sistema de progresso conectado ao Supabase</span>
-              <span className="text-xs text-gray-500">agora</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span className="text-sm">Separação por empresa implementada</span>
-              <span className="text-xs text-gray-500">agora</span>
-            </div>
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity) => (
+                <div key={activity.id} className="flex items-center space-x-3">
+                  <div className={`w-2 h-2 rounded-full ${
+                    activity.type === 'section_approved' ? 'bg-green-500' : 
+                    activity.type === 'voting_started' ? 'bg-yellow-500' : 'bg-blue-500'
+                  }`}></div>
+                  <div className="flex-1">
+                    <p className="text-sm">{activity.description}</p>
+                    <p className="text-xs text-gray-500">{formatTimeAgo(activity.created_at)}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">Nenhuma atividade recente</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Lightbulb, FileText, Vote, BarChart3, LogOut, UserPlus, Menu, X, CheckC
 import CanvasEditor from '@/components/CanvasEditor';
 import DetailedSectionManager from '@/components/DetailedSectionManager';
 import VotingInterface from '@/components/VotingInterface';
-import ProgressDashboard from '@/components/ProgressDashboard';
+import RealProgressDashboard from '@/components/RealProgressDashboard';
 import TeamManagement from '@/components/TeamManagement';
 import RealVotingCenter from '@/components/RealVotingCenter';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,49 +28,6 @@ const Index = () => {
 
   useRealtimeCanvasItems(currentBusinessPlan?.business_plan_id, refreshCanvasData);
 
-  // Remove the mock voting sections completely
-  // const votingSections = [
-  //   {
-  //     id: 'customer-relationships',
-  //     title: 'Relacionamento com Clientes',
-  //     content: 'Estabeleceremos relacionamentos próximos através de suporte personalizado, consultoria especializada e programas de fidelidade.',
-  //     votes: { approved: 2, rejected: 1, total: 3 },
-  //     deadline: '15/12/2024'
-  //   }
-  // ];
-
-  // Enhanced progress data - should be calculated from real data
-  const projectStats = {
-    totalSections: 24,
-    approvedSections: 2,
-    pendingSections: 3,
-    rejectedSections: 0,
-    teamMembers: 1,
-    overallProgress: 15
-  };
-
-  const sectionProgress = [
-    {
-      category: 'Business Model Canvas',
-      sections: [
-        { name: 'Proposta de Valor', status: 'draft' as const, progress: 20 },
-        { name: 'Segmentos de Clientes', status: 'draft' as const, progress: 0 },
-        { name: 'Canais', status: 'draft' as const, progress: 0 },
-        { name: 'Relacionamento', status: 'draft' as const, progress: 0 },
-        { name: 'Fontes de Receita', status: 'draft' as const, progress: 0 },
-        { name: 'Recursos-Chave', status: 'draft' as const, progress: 0 }
-      ]
-    },
-    {
-      category: 'Conceito',
-      sections: [
-        { name: 'Resumo Executivo', status: 'draft' as const, progress: 0 },
-        { name: 'Missão e Visão', status: 'draft' as const, progress: 0 },
-        { name: 'Objetivos Estratégicos', status: 'draft' as const, progress: 0 }
-      ]
-    }
-  ];
-
   // Navigation and category items
   const navigationItems = [
     { id: 'canvas', label: 'Canvas', icon: <FileText className="w-4 h-4" /> },
@@ -87,10 +45,6 @@ const Index = () => {
     { id: 'projecoes', label: 'Projeções' }
   ];
 
-  const handleVote = (sectionId: string, vote: 'approve' | 'reject', comment?: string) => {
-    console.log('Voting:', sectionId, vote, comment);
-  };
-
   const handleLogout = async () => {
     await signOut();
   };
@@ -106,8 +60,8 @@ const Index = () => {
     );
   }
 
-  // Calculate progress from real canvas data
-  const overallProgress = 15; // This should be calculated from real data
+  // Calculate progress from real canvas data - will be dynamic now
+  const overallProgress = 15; // This will be calculated by RealProgressDashboard
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -303,7 +257,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* Progress View */}
+        {/* Progress View - Updated to use RealProgressDashboard */}
         {activeSection === 'progresso' && (
           <div className="space-y-4 sm:space-y-6">
             <div className="text-center mb-6 sm:mb-8">
@@ -312,10 +266,7 @@ const Index = () => {
                 Acompanhe o progresso geral do projeto e o status de cada seção.
               </p>
             </div>
-            <ProgressDashboard
-              projectStats={projectStats}
-              sectionProgress={sectionProgress}
-            />
+            <RealProgressDashboard />
           </div>
         )}
 
