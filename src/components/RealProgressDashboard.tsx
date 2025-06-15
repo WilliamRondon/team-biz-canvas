@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -71,12 +70,11 @@ const RealProgressDashboard = () => {
         const progressData = canvasData[0];
         setOverallProgress(progressData.overall_percentage || 0);
         
-        // Handle the sections data safely
-        if (progressData.sections && typeof progressData.sections === 'object') {
+        // Handle the sections data safely with proper type casting
+        if (progressData.sections && Array.isArray(progressData.sections)) {
           try {
-            const sectionsArray = Array.isArray(progressData.sections) 
-              ? progressData.sections 
-              : [];
+            // Cast the Json array to our CanvasProgress interface
+            const sectionsArray = progressData.sections as CanvasProgress[];
             setCanvasProgress(sectionsArray);
           } catch (e) {
             console.error('Error parsing sections data:', e);
