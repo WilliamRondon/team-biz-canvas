@@ -59,6 +59,8 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          locked_at: string | null
+          locked_by: string | null
           section_id: string | null
           status: string | null
           updated_at: string | null
@@ -69,6 +71,8 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          locked_at?: string | null
+          locked_by?: string | null
           section_id?: string | null
           status?: string | null
           updated_at?: string | null
@@ -79,6 +83,8 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          locked_at?: string | null
+          locked_by?: string | null
           section_id?: string | null
           status?: string | null
           updated_at?: string | null
@@ -557,6 +563,10 @@ export type Database = {
           created_at: string
         }[]
       }
+      user_can_lock_canvas_item: {
+        Args: { item_id: string }
+        Returns: boolean
+      }
       user_has_access_to_business_plan: {
         Args: { plan_id: string }
         Returns: boolean
@@ -650,9 +660,7 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof Database },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
-  }
+  EnumName extends DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
     ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
@@ -660,24 +668,3 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const
