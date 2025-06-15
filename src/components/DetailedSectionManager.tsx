@@ -36,6 +36,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editContent, setEditContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [votingLoading, setVotingLoading] = useState<string | null>(null);
   const { currentBusinessPlan, user } = useAuth();
   const { toast } = useToast();
 
@@ -222,19 +223,24 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
   const startVoting = async (sectionId: string) => {
     try {
-      const { error } = await supabase
-        .from('detailed_sections')
-        .update({ 
-          status: 'voting',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', sectionId);
+      setVotingLoading(sectionId);
+      
+      console.log('Starting voting for section:', sectionId);
 
-      if (error) {
-        console.error('Error starting voting:', error);
-        throw error;
+      // Create voting session using the database function
+      const { data: votingSessionId, error: votingError } = await supabase
+        .rpc('create_voting_session_from_section', {
+          section_id_param: sectionId
+        });
+
+      if (votingError) {
+        console.error('Error creating voting session:', votingError);
+        throw votingError;
       }
 
+      console.log('Voting session created:', votingSessionId);
+
+      // Update local state immediately
       setSections(prev => prev.map(section => 
         section.id === sectionId 
           ? { ...section, status: 'voting' as const }
@@ -245,6 +251,10 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         title: "Votação iniciada",
         description: "A seção foi enviada para votação.",
       });
+
+      // Reload sections to get updated data
+      setTimeout(() => loadDetailedSections(), 1000);
+      
     } catch (error) {
       console.error('Error starting voting:', error);
       toast({
@@ -252,6 +262,8 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         description: "Não foi possível iniciar a votação.",
         variant: "destructive"
       });
+    } finally {
+      setVotingLoading(null);
     }
   };
 
@@ -433,9 +445,10 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
                     onClick={() => startVoting(section.id)}
                     variant="outline"
                     size="sm"
+                    disabled={votingLoading === section.id}
                   >
                     <Vote className="w-4 h-4 mr-2" />
-                    Enviar para Votação
+                    {votingLoading === section.id ? 'Enviando...' : 'Enviar para Votação'}
                   </Button>
                 )}
               </div>
