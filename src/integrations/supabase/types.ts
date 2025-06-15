@@ -513,7 +513,7 @@ export type Database = {
         }[]
       }
       calculate_section_progress: {
-        Args: { section_id: string }
+        Args: { section_id_param: string }
         Returns: number
       }
       create_default_canvas_sections: {

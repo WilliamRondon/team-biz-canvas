@@ -51,22 +51,13 @@ const RealProgressDashboard = () => {
 
   const loadProgressData = useCallback(async () => {
     if (!currentBusinessPlan?.business_plan_id) {
-      console.log('❌ No business plan found, business_plan_id:', currentBusinessPlan?.business_plan_id);
+      console.log('No business plan found');
       return;
     }
 
     try {
-      console.log('🔄 Loading progress data for business plan:', currentBusinessPlan.business_plan_id);
+      console.log('Loading progress data for business plan:', currentBusinessPlan.business_plan_id);
       setLoading(true);
-
-      // First, let's check what detailed sections exist
-      const { data: sectionsCheck, error: sectionsError } = await supabase
-        .from('detailed_sections')
-        .select('id, category, title, status')
-        .eq('business_plan_id', currentBusinessPlan.business_plan_id);
-
-      console.log('📊 Detailed sections raw data:', sectionsCheck);
-      console.log('📊 Sections error:', sectionsError);
 
       // Load detailed sections progress using the function
       const { data: detailedData, error: detailedError } = await supabase
@@ -74,24 +65,12 @@ const RealProgressDashboard = () => {
           business_plan_id_param: currentBusinessPlan.business_plan_id
         });
 
-      console.log('📈 Detailed progress function result:', detailedData);
-      console.log('❌ Detailed progress error:', detailedError);
-
       if (detailedError) {
         console.error('Error loading detailed progress:', detailedError);
       } else {
-        console.log('✅ Setting detailed progress data:', detailedData || []);
+        console.log('Detailed progress loaded:', detailedData || []);
         setDetailedProgress(detailedData || []);
       }
-
-      // Check canvas sections
-      const { data: canvasSectionsCheck, error: canvasSectionsError } = await supabase
-        .from('canvas_sections')
-        .select('id, title')
-        .eq('business_plan_id', currentBusinessPlan.business_plan_id);
-
-      console.log('🎨 Canvas sections raw data:', canvasSectionsCheck);
-      console.log('❌ Canvas sections error:', canvasSectionsError);
 
       // Load canvas progress
       const { data: canvasData, error: canvasError } = await supabase
@@ -99,20 +78,15 @@ const RealProgressDashboard = () => {
           plan_id: currentBusinessPlan.business_plan_id
         });
 
-      console.log('📊 Canvas progress function result:', canvasData);
-      console.log('❌ Canvas progress error:', canvasError);
-
       if (canvasError) {
         console.error('Error loading canvas progress:', canvasError);
       } else if (canvasData && canvasData.length > 0) {
-        console.log('✅ Canvas progress data found:', canvasData[0]);
+        console.log('Canvas progress loaded:', canvasData[0]);
         const progressData = canvasData[0];
         setOverallProgress(progressData.overall_percentage || 0);
         
-        // Handle the sections data safely with proper type casting
         if (progressData.sections && Array.isArray(progressData.sections)) {
           try {
-            // Parse and validate each section object
             const sectionsArray = progressData.sections
               .filter((section: any) => section && typeof section === 'object')
               .map((section: any) => ({
@@ -122,18 +96,14 @@ const RealProgressDashboard = () => {
                 total_items: section.total_items || 0,
                 approved_items: section.approved_items || 0
               })) as CanvasProgress[];
-            console.log('✅ Setting canvas progress:', sectionsArray);
             setCanvasProgress(sectionsArray);
           } catch (e) {
             console.error('Error parsing sections data:', e);
             setCanvasProgress([]);
           }
         } else {
-          console.log('⚠️ No sections data found in canvas progress');
           setCanvasProgress([]);
         }
-      } else {
-        console.log('⚠️ No canvas progress data returned');
       }
 
       // Load team members
@@ -143,13 +113,9 @@ const RealProgressDashboard = () => {
         .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .eq('status', 'active');
 
-      console.log('👥 Team members data:', teamData);
-      console.log('❌ Team members error:', teamError);
-
       if (teamError) {
         console.error('Error loading team members:', teamError);
       } else if (teamData) {
-        // Get user profiles for team members
         const userIds = teamData.map(member => member.user_id).filter(Boolean);
         let userProfiles: any[] = [];
         
@@ -158,9 +124,6 @@ const RealProgressDashboard = () => {
             .from('user_profiles')
             .select('id, full_name')
             .in('id', userIds);
-
-          console.log('👤 User profiles data:', profilesData);
-          console.log('❌ User profiles error:', profilesError);
 
           if (!profilesError && profilesData) {
             userProfiles = profilesData;
@@ -177,7 +140,6 @@ const RealProgressDashboard = () => {
           };
         });
 
-        console.log('✅ Setting team members:', mappedTeamMembers);
         setTeamMembers(mappedTeamMembers);
       }
 
@@ -185,7 +147,7 @@ const RealProgressDashboard = () => {
       await loadRecentActivity();
 
     } catch (error) {
-      console.error('💥 Critical error loading progress data:', error);
+      console.error('Critical error loading progress data:', error);
     } finally {
       setLoading(false);
     }
@@ -195,7 +157,7 @@ const RealProgressDashboard = () => {
     if (!currentBusinessPlan?.business_plan_id) return;
 
     try {
-      console.log('🕐 Loading recent activity...');
+      console.log('Loading recent activity...');
       const activityItems: ActivityItem[] = [];
 
       // Get recent voting sessions
@@ -205,9 +167,6 @@ const RealProgressDashboard = () => {
         .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .order('created_at', { ascending: false })
         .limit(3);
-
-      console.log('🗳️ Recent voting sessions:', votingSessions);
-      console.log('❌ Voting sessions error:', votingError);
 
       if (!votingError && votingSessions) {
         votingSessions.forEach(session => {
@@ -242,9 +201,6 @@ const RealProgressDashboard = () => {
         .order('updated_at', { ascending: false })
         .limit(2);
 
-      console.log('✅ Recently approved sections:', approvedSections);
-      console.log('❌ Approved sections error:', approvedError);
-
       if (!approvedError && approvedSections) {
         approvedSections.forEach(section => {
           activityItems.push({
@@ -265,9 +221,6 @@ const RealProgressDashboard = () => {
         .order('updated_at', { ascending: false })
         .limit(2);
 
-      console.log('🎨 Recently approved canvas items:', approvedItems);
-      console.log('❌ Canvas items error:', itemsError);
-
       if (!itemsError && approvedItems) {
         approvedItems.forEach(item => {
           activityItems.push({
@@ -282,11 +235,10 @@ const RealProgressDashboard = () => {
 
       // Sort by date and take the most recent
       activityItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      console.log('✅ Setting recent activity:', activityItems.slice(0, 5));
       setRecentActivity(activityItems.slice(0, 5));
 
     } catch (error) {
-      console.error('💥 Error loading recent activity:', error);
+      console.error('Error loading recent activity:', error);
     }
   };
 
@@ -296,35 +248,28 @@ const RealProgressDashboard = () => {
 
   useEffect(() => {
     if (currentBusinessPlan?.business_plan_id) {
-      console.log('🚀 Initial load for business plan:', currentBusinessPlan.business_plan_id);
+      console.log('Initial load for business plan:', currentBusinessPlan.business_plan_id);
       loadProgressData();
     } else {
-      console.log('⏳ Waiting for business plan to load...');
+      console.log('Waiting for business plan to load...');
     }
   }, [currentBusinessPlan?.business_plan_id, loadProgressData]);
 
   const calculateOverallDetailedProgress = () => {
     if (detailedProgress.length === 0) {
-      console.log('📊 No detailed progress data, returning 0');
       return 0;
     }
-    const result = Math.round(
+    return Math.round(
       detailedProgress.reduce((sum, cat) => sum + cat.progress_percentage, 0) / detailedProgress.length
     );
-    console.log('📊 Calculated detailed progress:', result);
-    return result;
   };
 
   const getTotalApprovedSections = () => {
-    const result = detailedProgress.reduce((sum, cat) => sum + cat.approved_sections, 0);
-    console.log('✅ Total approved sections:', result);
-    return result;
+    return detailedProgress.reduce((sum, cat) => sum + cat.approved_sections, 0);
   };
 
   const getTotalSections = () => {
-    const result = detailedProgress.reduce((sum, cat) => sum + cat.total_sections, 0);
-    console.log('📝 Total sections:', result);
-    return result;
+    return detailedProgress.reduce((sum, cat) => sum + cat.total_sections, 0);
   };
 
   const getStatusBadge = (progress: number) => {
@@ -363,16 +308,6 @@ const RealProgressDashboard = () => {
 
   const overallDetailedProgress = calculateOverallDetailedProgress();
   const finalOverallProgress = Math.max(overallDetailedProgress, overallProgress);
-
-  console.log('🎯 Final render state:', {
-    detailedProgress: detailedProgress.length,
-    canvasProgress: canvasProgress.length,
-    teamMembers: teamMembers.length,
-    recentActivity: recentActivity.length,
-    overallProgress,
-    overallDetailedProgress,
-    finalOverallProgress
-  });
 
   return (
     <div className="space-y-6">
@@ -426,26 +361,6 @@ const RealProgressDashboard = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Debug Info - Remove this after fixing */}
-      {process.env.NODE_ENV === 'development' && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-red-700">Debug Info</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm space-y-2">
-              <p><strong>Business Plan ID:</strong> {currentBusinessPlan?.business_plan_id || 'Not loaded'}</p>
-              <p><strong>Detailed Progress Items:</strong> {detailedProgress.length}</p>
-              <p><strong>Canvas Progress Items:</strong> {canvasProgress.length}</p>
-              <p><strong>Team Members:</strong> {teamMembers.length}</p>
-              <p><strong>Recent Activity:</strong> {recentActivity.length}</p>
-              <p><strong>Overall Progress:</strong> {overallProgress}%</p>
-              <p><strong>Detailed Progress:</strong> {overallDetailedProgress}%</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Business Model Canvas */}
       {canvasProgress.length > 0 && (
