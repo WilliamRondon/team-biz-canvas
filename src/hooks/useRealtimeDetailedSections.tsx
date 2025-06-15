@@ -1,13 +1,22 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useRealtimeDetailedSections = (businessPlanId: string, onUpdate: () => void) => {
+  // Use ref to store the callback to avoid it being a dependency
+  const onUpdateRef = useRef(onUpdate);
+  
+  // Update ref when callback changes
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   useEffect(() => {
     if (!businessPlanId) return;
 
+    // Use static channel name instead of dynamic one with Date.now()
     const channel = supabase
-      .channel(`detailed_sections_changes_${businessPlanId}_${Date.now()}`)
+      .channel(`detailed_sections_${businessPlanId}`)
       .on(
         'postgres_changes',
         {
@@ -18,7 +27,7 @@ export const useRealtimeDetailedSections = (businessPlanId: string, onUpdate: ()
         },
         (payload) => {
           console.log('Detailed sections changed:', payload);
-          onUpdate();
+          onUpdateRef.current();
         }
       )
       .subscribe();
@@ -26,5 +35,5 @@ export const useRealtimeDetailedSections = (businessPlanId: string, onUpdate: ()
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessPlanId, onUpdate]);
+  }, [businessPlanId]); // Only depend on businessPlanId
 };

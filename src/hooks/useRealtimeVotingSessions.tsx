@@ -1,13 +1,22 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () => void) => {
+  // Use ref to store the callback to avoid it being a dependency
+  const onUpdateRef = useRef(onUpdate);
+  
+  // Update ref when callback changes
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   useEffect(() => {
     if (!businessPlanId) return;
 
+    // Use static channel names instead of dynamic ones with Date.now()
     const votingSessionsChannel = supabase
-      .channel(`voting_sessions_changes_${businessPlanId}_${Date.now()}`)
+      .channel(`voting_sessions_${businessPlanId}`)
       .on(
         'postgres_changes',
         {
@@ -18,13 +27,13 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
         },
         (payload) => {
           console.log('Voting sessions changed:', payload);
-          onUpdate();
+          onUpdateRef.current();
         }
       )
       .subscribe();
 
     const votesChannel = supabase
-      .channel(`votes_changes_${businessPlanId}_${Date.now()}`)
+      .channel(`votes_${businessPlanId}`)
       .on(
         'postgres_changes',
         {
@@ -34,7 +43,7 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
         },
         (payload) => {
           console.log('Votes changed:', payload);
-          onUpdate();
+          onUpdateRef.current();
         }
       )
       .subscribe();
@@ -43,5 +52,5 @@ export const useRealtimeVotingSessions = (businessPlanId: string, onUpdate: () =
       supabase.removeChannel(votingSessionsChannel);
       supabase.removeChannel(votesChannel);
     };
-  }, [businessPlanId, onUpdate]);
+  }, [businessPlanId]); // Only depend on businessPlanId
 };

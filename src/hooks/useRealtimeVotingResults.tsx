@@ -1,14 +1,21 @@
-
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useRealtimeVotingResults = (businessPlanId: string, onUpdate: () => void) => {
+  // Use ref to store the callback to avoid it being a dependency
+  const onUpdateRef = useRef(onUpdate);
+  
+  // Update ref when callback changes
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   useEffect(() => {
     if (!businessPlanId) return;
 
-    // Listen for voting session changes to detect when voting is completed
+    // Use static channel name instead of dynamic one with Date.now()
     const votingChannel = supabase
-      .channel(`voting_results_changes_${businessPlanId}_${Date.now()}`)
+      .channel(`voting_results_${businessPlanId}`)
       .on(
         'postgres_changes',
         {
@@ -23,7 +30,7 @@ export const useRealtimeVotingResults = (businessPlanId: string, onUpdate: () =>
           // Check if voting was completed and process results
           if (payload.new.status === 'completed') {
             await processVotingResults(payload.new.id);
-            onUpdate();
+            onUpdateRef.current();
           }
         }
       )
@@ -39,7 +46,7 @@ export const useRealtimeVotingResults = (businessPlanId: string, onUpdate: () =>
           
           // Check if this vote completes the voting session
           await checkAndCompleteVoting(payload.new.voting_session_id);
-          onUpdate();
+          onUpdateRef.current();
         }
       )
       .subscribe();
@@ -47,7 +54,7 @@ export const useRealtimeVotingResults = (businessPlanId: string, onUpdate: () =>
     return () => {
       supabase.removeChannel(votingChannel);
     };
-  }, [businessPlanId, onUpdate]);
+  }, [businessPlanId]); // Only depend on businessPlanId
 };
 
 const processVotingResults = async (votingSessionId: string) => {

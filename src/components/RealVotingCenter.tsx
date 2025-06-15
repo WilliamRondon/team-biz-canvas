@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,7 +36,7 @@ const RealVotingCenter = () => {
   const { currentBusinessPlan, user } = useAuth();
   const { toast } = useToast();
 
-  const loadVotingSessions = async () => {
+  const loadVotingSessions = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -86,7 +86,7 @@ const RealVotingCenter = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentBusinessPlan?.business_plan_id, toast]);
 
   // Use realtime for updates including voting results
   useRealtimeVotingSessions(currentBusinessPlan?.business_plan_id || '', loadVotingSessions);
@@ -96,7 +96,7 @@ const RealVotingCenter = () => {
     if (currentBusinessPlan?.business_plan_id) {
       loadVotingSessions();
     }
-  }, [currentBusinessPlan]);
+  }, [currentBusinessPlan, loadVotingSessions]);
 
   const handleVote = async (sessionId: string) => {
     const selectedVote = selectedVotes[sessionId];

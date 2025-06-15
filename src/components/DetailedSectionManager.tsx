@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,7 +40,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
   const { currentBusinessPlan, user } = useAuth();
   const { toast } = useToast();
 
-  const loadDetailedSections = async () => {
+  const loadDetailedSections = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -128,9 +128,9 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentBusinessPlan?.business_plan_id, category, toast]);
 
-  const createDefaultSections = async () => {
+  const createDefaultSections = useCallback(async () => {
     try {
       console.log('Creating default sections for business plan:', currentBusinessPlan?.business_plan_id);
       
@@ -154,7 +154,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         variant: "destructive"
       });
     }
-  };
+  }, [currentBusinessPlan?.business_plan_id, loadDetailedSections, toast]);
 
   // Use realtime for updates
   useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadDetailedSections);
@@ -163,7 +163,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     if (currentBusinessPlan?.business_plan_id) {
       loadDetailedSections();
     }
-  }, [currentBusinessPlan, category]);
+  }, [currentBusinessPlan, category, loadDetailedSections]);
 
   const startEditing = (section: DetailedSection) => {
     setEditingSection(section.id);
