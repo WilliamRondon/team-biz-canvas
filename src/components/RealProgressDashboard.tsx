@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -6,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeDetailedSections } from '@/hooks/useRealtimeDetailedSections';
+import { useRealtimeVotingResults } from '@/hooks/useRealtimeVotingResults';
 
 interface ProgressData {
   category: string;
@@ -46,6 +47,10 @@ const RealProgressDashboard = () => {
   const [overallProgress, setOverallProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const { currentBusinessPlan } = useAuth();
+
+  // Use realtime hooks for live updates
+  useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadProgressData);
+  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', loadProgressData);
 
   useEffect(() => {
     if (currentBusinessPlan?.business_plan_id) {
@@ -159,21 +164,32 @@ const RealProgressDashboard = () => {
       // Get recent voting sessions
       const { data: votingSessions, error: votingError } = await supabase
         .from('voting_sessions')
-        .select('id, title, created_at, created_by, user_profiles(full_name)')
+        .select('id, title, created_at, status, created_by, user_profiles(full_name)')
         .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
         .order('created_at', { ascending: false })
         .limit(3);
 
       if (!votingError && votingSessions) {
         votingSessions.forEach(session => {
-          activityItems.push({
-            id: `voting-${session.id}`,
-            type: 'voting_started',
-            title: 'Nova votação iniciada',
-            description: `Votação iniciada para "${session.title}"`,
-            created_at: session.created_at,
-            user_name: (session as any).user_profiles?.full_name
-          });
+          if (session.status === 'completed') {
+            activityItems.push({
+              id: `voting-completed-${session.id}`,
+              type: 'section_approved',
+              title: 'Votação finalizada',
+              description: `Votação para "${session.title}" foi concluída`,
+              created_at: session.created_at,
+              user_name: (session as any).user_profiles?.full_name
+            });
+          } else {
+            activityItems.push({
+              id: `voting-${session.id}`,
+              type: 'voting_started',
+              title: 'Nova votação iniciada',
+              description: `Votação iniciada para "${session.title}"`,
+              created_at: session.created_at,
+              user_name: (session as any).user_profiles?.full_name
+            });
+          }
         });
       }
 

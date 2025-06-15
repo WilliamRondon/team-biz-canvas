@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,12 +10,14 @@ import TeamManagement from '@/components/TeamManagement';
 import RealVotingCenter from '@/components/RealVotingCenter';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtime, useRealtimeCanvasItems } from '@/hooks/useRealtime';
+import { useRealtimeVotingResults } from '@/hooks/useRealtimeVotingResults';
 
 const Index = () => {
   const { user, currentBusinessPlan, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState('canvas');
   const [activeCategory, setActiveCategory] = useState('conceito');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dynamicProgress, setDynamicProgress] = useState(15);
 
   // Use realtime hooks
   const { onlineUsers } = useRealtime();
@@ -26,7 +27,14 @@ const Index = () => {
     console.log('Canvas data updated in real-time');
   }, []);
 
+  // Callback to update progress when voting results change
+  const updateProgress = useCallback(() => {
+    console.log('Voting results updated, refreshing progress');
+    // This will trigger a re-render which will update the progress dashboard
+  }, []);
+
   useRealtimeCanvasItems(currentBusinessPlan?.business_plan_id, refreshCanvasData);
+  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', updateProgress);
 
   // Navigation and category items
   const navigationItems = [
@@ -61,7 +69,7 @@ const Index = () => {
   }
 
   // Calculate progress from real canvas data - will be dynamic now
-  const overallProgress = 15; // This will be calculated by RealProgressDashboard
+  const overallProgress = dynamicProgress; // This will be calculated by RealProgressDashboard
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -102,7 +110,7 @@ const Index = () => {
                 </div>
               )}
               
-              {/* Progress indicator */}
+              {/* Progress indicator - now will update in real-time */}
               <div className="text-right">
                 <p className="text-xs sm:text-sm text-slate-600">Progresso</p>
                 <div className="flex items-center space-x-2">

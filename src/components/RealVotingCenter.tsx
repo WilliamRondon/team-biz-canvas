@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtimeVotingSessions } from '@/hooks/useRealtimeVotingSessions';
+import { useRealtimeVotingResults } from '@/hooks/useRealtimeVotingResults';
 
 interface VotingSession {
   id: string;
@@ -88,8 +88,9 @@ const RealVotingCenter = () => {
     }
   };
 
-  // Use realtime for updates
+  // Use realtime for updates including voting results
   useRealtimeVotingSessions(currentBusinessPlan?.business_plan_id || '', loadVotingSessions);
+  useRealtimeVotingResults(currentBusinessPlan?.business_plan_id || '', loadVotingSessions);
 
   useEffect(() => {
     if (currentBusinessPlan?.business_plan_id) {
@@ -137,7 +138,7 @@ const RealVotingCenter = () => {
       setComments(prev => ({ ...prev, [sessionId]: '' }));
 
       // Reload voting sessions to get updated data
-      loadVotingSessions();
+      setTimeout(() => loadVotingSessions(), 500);
 
     } catch (error) {
       console.error('Error voting:', error);
