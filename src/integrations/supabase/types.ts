@@ -413,91 +413,6 @@ export type Database = {
         }
         Relationships: []
       }
-      votes: {
-        Row: {
-          comment: string | null
-          created_at: string
-          id: string
-          user_id: string
-          vote_type: string
-          voting_session_id: string
-        }
-        Insert: {
-          comment?: string | null
-          created_at?: string
-          id?: string
-          user_id: string
-          vote_type: string
-          voting_session_id: string
-        }
-        Update: {
-          comment?: string | null
-          created_at?: string
-          id?: string
-          user_id?: string
-          vote_type?: string
-          voting_session_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "votes_voting_session_id_fkey"
-            columns: ["voting_session_id"]
-            isOneToOne: false
-            referencedRelation: "voting_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      voting_sessions: {
-        Row: {
-          business_plan_id: string
-          content: string
-          created_at: string
-          created_by: string | null
-          deadline: string | null
-          id: string
-          item_id: string
-          item_type: string
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          business_plan_id: string
-          content: string
-          created_at?: string
-          created_by?: string | null
-          deadline?: string | null
-          id?: string
-          item_id: string
-          item_type: string
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          business_plan_id?: string
-          content?: string
-          created_at?: string
-          created_by?: string | null
-          deadline?: string | null
-          id?: string
-          item_id?: string
-          item_type?: string
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "voting_sessions_business_plan_id_fkey"
-            columns: ["business_plan_id"]
-            isOneToOne: false
-            referencedRelation: "business_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -524,37 +439,11 @@ export type Database = {
         Args: { plan_id: string }
         Returns: undefined
       }
-      create_voting_session_from_canvas_item: {
-        Args: { item_id_param: string }
-        Returns: string
-      }
-      create_voting_session_from_section: {
-        Args: { section_id_param: string }
-        Returns: string
-      }
       get_business_plan_progress: {
         Args: { plan_id: string }
         Returns: {
           overall_percentage: number
           sections: Json
-        }[]
-      }
-      get_voting_sessions_with_counts: {
-        Args: { business_plan_id_param: string }
-        Returns: {
-          id: string
-          item_id: string
-          item_type: string
-          title: string
-          content: string
-          status: string
-          deadline: string
-          total_votes: number
-          approve_votes: number
-          reject_votes: number
-          user_vote: string
-          user_comment: string
-          created_at: string
         }[]
       }
       user_has_access_to_business_plan: {
