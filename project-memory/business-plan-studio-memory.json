@@ -1,0 +1,150 @@
+[
+    {
+      "name": "Business_Plan_Studio",
+      "entityType": "project",
+      "observations": [
+        "Plataforma colaborativa para desenvolvimento de planos de negócios",
+        "Stack: React, TypeScript, Vite, Tailwind CSS, Supabase",
+        "Funcionalidade principal: Business Model Canvas colaborativo em tempo real",
+        "Objetivo: Transformar o canvas em workspace dinâmico e interativo"
+      ]
+    },
+    {
+      "name": "Canvas_Collaboration",
+      "entityType": "feature",
+      "observations": [
+        "Status: Implementação completa - frontend e backend prontos",
+        "Funcionalidade: Edição simultânea do Business Model Canvas",
+        "Recursos: presença de usuários, cursores ao vivo, bloqueio de itens",
+        "Schema de bloqueio: colunas locked_by e locked_at implementadas na tabela canvas_items",
+        "Migração aplicada: add_locking_columns_to_canvas_items",
+        "Componentes chave: CanvasEditor.tsx, useRealtimeCanvas.ts",
+        "Canal real-time: canvas-collaboration:{business_plan_id}",
+        "Pronto para testes de colaboração em tempo real"
+      ]
+    }
+    {
+      "name": "Voting_System",
+      "entityType": "feature",
+      "observations": [
+        "Status: Implementado e funcional",
+        "Funcionalidade: Permite votação em itens do canvas e seções detalhadas",
+        "Componentes principais: VotingInterface.tsx, RealVotingCenter.tsx",
+        "Integração com canvas através de canvas_items e sections",
+        "Funções DB: create_voting_session_from_canvas_item, get_voting_sessions_with_counts"
+      ]
+    },
+    {
+      "name": "Supabase_Integration",
+      "entityType": "technology",
+      "observations": [
+        "Usado para PostgreSQL, Auth, Realtime, Edge Functions",
+        "Tabelas principais: canvas_items, canvas_sections, user_profiles, business_plans",
+        "Canal real-time: canvas-collaboration:{business_plan_id}",
+        "Schema de bloqueio implementado: locked_by (UUID), locked_at (TIMESTAMPTZ)",
+        "Migração add_locking_columns_to_canvas_items aplicada com sucesso",
+        "RLS policies necessárias para segurança de bloqueio",
+        "Extensões ativas: pg_graphql, pgcrypto, uuid-ossp"
+      ]
+    }
+    {
+      "name": "Authentication_System",
+      "entityType": "feature",
+      "observations": [
+        "Status: Implementado",
+        "Funcionalidade: Gerencia login, registro e perfis de usuário",
+        "Componentes: useAuth.tsx, Auth.tsx",
+        "Tabelas: auth.users, public.user_profiles",
+        "Integração com sistema de permissões e RLS"
+      ]
+    },
+    {
+      "name": "useRealtimeCanvas",
+      "entityType": "hook",
+      "observations": [
+        "Hook customizado para gerenciar colaboração em tempo real no canvas",
+        "Responsável por conexões WebSocket com Supabase Realtime",
+        "Gerencia presença de usuários, cursores ao vivo e bloqueio de itens",
+        "Localização: src/hooks/useRealtimeCanvas.ts",
+        "Estado: Implementado e pronto para uso - schema de bloqueio disponível",
+        "Funções principais: lockItem, unlockItem, handlePresence"
+      ]
+    }
+    {
+      "name": "CanvasEditor",
+      "entityType": "component",
+      "observations": [
+        "Componente principal da interface do Business Model Canvas",
+        "Renderiza as 9 seções padrão do canvas colaborativo",
+        "Integra com useRealtimeCanvas para funcionalidades em tempo real",
+        "Localização: src/components/CanvasEditor.tsx",
+        "Implementa feedback visual de bloqueio e presença de usuários"
+      ]
+    },
+    {
+      "name": "Database_Migration_Status",
+      "entityType": "implementation",
+      "observations": [
+        "Migração add_locking_columns_to_canvas_items aplicada com sucesso",
+        "Tabela canvas_items possui colunas: locked_by (UUID), locked_at (TIMESTAMPTZ)",
+        "Schema completo para funcionalidade de bloqueio colaborativo",
+        "Próximo passo: Implementar políticas RLS para bloqueio",
+        "Próximo passo: Testes end-to-end da colaboração em tempo real"
+      ]
+    },
+    {
+      "name": "Current_Project_Status",
+      "entityType": "status",
+      "observations": [
+        "Canvas Collaboration: Backend e frontend prontos para integração",
+        "Voting System: Implementado e funcional",
+        "Authentication System: Implementado e funcional",
+        "Database Schema: Migração de bloqueio aplicada",
+        "Próxima prioridade: Validação end-to-end da colaboração em tempo real",
+        "Bloqueadores removidos: Schema de banco de dados completo"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "Canvas_Collaboration",
+      "to": "Supabase_Integration",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "Voting_System",
+      "to": "Supabase_Integration",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "Authentication_System",
+      "to": "Supabase_Integration",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "Business_Plan_Studio",
+      "to": "Canvas_Collaboration",
+      "relationType": "includes_feature"
+    },
+    {
+      "from": "Business_Plan_Studio",
+      "to": "Voting_System",
+      "relationType": "includes_feature"
+    },
+    {
+       "from": "Business_Plan_Studio",
+       "to": "Authentication_System",
+       "relationType": "includes_feature"
+     },
+     {
+       "from": "Canvas_Collaboration",
+       "to": "useRealtimeCanvas",
+       "relationType": "implemented_by"
+     },
+     {
+       "from": "Canvas_Collaboration",
+       "to": "CanvasEditor",
+       "relationType": "uses_component"
+     }
+   ]
+  

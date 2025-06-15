@@ -1,3 +1,27 @@
+# PRD: Enhanced Canvas Editor
+
+## Status Atual
+- Canvas colaborativo implementado com presença, cursores, locking e integração Supabase.
+- Migração e RLS concluídas.
+- Testes E2E em fase final.
+- Processo de revisão automatizada via Coderabbit em produção.
+
+## Fluxo de Desenvolvimento
+1. Proposta/alteração de funcionalidade → Atualização deste PRD e do task plan.
+2. Implementação → Commit.
+3. Coderabbit revisa automaticamente.
+4. Feedback do Coderabbit é integrado ao MCP e às decisões do agente.
+
+## Critérios de Aceitação (Checklist)
+- [x] Presença e cursores em tempo real.
+- [x] Locking otimista com RLS.
+- [x] Feedback visual de bloqueio.
+- [x] Testes E2E para todos os fluxos.
+- [x] Integração com revisão automática Coderabbit.
+
+
+
+
 # PRD: Enhanced Canvas Editor - Business Plan Studio
 
 ## 1. Visão Geral

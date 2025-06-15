@@ -1,5 +1,18 @@
 # Task Plan: Enhanced Canvas Editor
 
+## Fluxo de Tarefas
+1. Analisar documentação e contexto atual (via MCP).
+2. Implementar/alterar funcionalidade.
+3. Registrar alteração no MCP.
+4. Notificar Coderabbit para revisão automática.
+5. Corrigir eventuais erros apontados pelo Coderabbit.
+6. Se aprovado, atualizar documentação e MCP com progresso.
+
+## Observações
+- Toda alteração relevante deve ser registrada como observação no MCP.
+- O agente deve consultar o MCP antes de sugerir mudanças, garantindo continuidade e histórico.
+
+
 ```json
 {
   "id": "TASK-001",
