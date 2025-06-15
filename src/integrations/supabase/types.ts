@@ -207,68 +207,6 @@ export type Database = {
         }
         Relationships: []
       }
-      detailed_sections: {
-        Row: {
-          assigned_to: string | null
-          business_plan_id: string | null
-          category: string
-          content: string | null
-          created_at: string | null
-          created_by: string | null
-          deadline: string | null
-          dependencies: string[] | null
-          description: string | null
-          id: string
-          progress_percentage: number | null
-          section_key: string
-          status: string | null
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          assigned_to?: string | null
-          business_plan_id?: string | null
-          category: string
-          content?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deadline?: string | null
-          dependencies?: string[] | null
-          description?: string | null
-          id?: string
-          progress_percentage?: number | null
-          section_key: string
-          status?: string | null
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          assigned_to?: string | null
-          business_plan_id?: string | null
-          category?: string
-          content?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deadline?: string | null
-          dependencies?: string[] | null
-          description?: string | null
-          id?: string
-          progress_percentage?: number | null
-          section_key?: string
-          status?: string | null
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "detailed_sections_business_plan_id_fkey"
-            columns: ["business_plan_id"]
-            isOneToOne: false
-            referencedRelation: "business_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       invitations: {
         Row: {
           business_plan_id: string | null
@@ -418,24 +356,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      calculate_detailed_section_progress: {
-        Args: { business_plan_id_param: string }
-        Returns: {
-          category: string
-          total_sections: number
-          approved_sections: number
-          progress_percentage: number
-        }[]
-      }
       calculate_section_progress: {
         Args: { section_id: string }
         Returns: number
       }
       create_default_canvas_sections: {
-        Args: { plan_id: string }
-        Returns: undefined
-      }
-      create_default_detailed_sections: {
         Args: { plan_id: string }
         Returns: undefined
       }
