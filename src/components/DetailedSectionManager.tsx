@@ -222,19 +222,19 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
   const startVoting = async (sectionId: string) => {
     try {
-      const { error } = await supabase
-        .from('detailed_sections')
-        .update({ 
-          status: 'voting',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', sectionId);
+      const { data: sessionId, error } = await supabase
+        .rpc('create_voting_session_from_section', {
+          section_id_param: sectionId
+        });
 
       if (error) {
         console.error('Error starting voting:', error);
         throw error;
       }
 
+      console.log('Voting session created:', sessionId);
+
+      // Update local state
       setSections(prev => prev.map(section => 
         section.id === sectionId 
           ? { ...section, status: 'voting' as const }
@@ -243,7 +243,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
 
       toast({
         title: "Votação iniciada",
-        description: "A seção foi enviada para votação.",
+        description: "A seção foi enviada para votação e aparecerá no Centro de Votação.",
       });
     } catch (error) {
       console.error('Error starting voting:', error);
@@ -401,15 +401,23 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
                   <div className="min-h-[100px] p-4 border rounded-lg bg-gray-50">
                     {section.content || 'Clique em editar para desenvolver esta seção...'}
                   </div>
-                  {canEditSection ? (
+                  {canEditSection && section.status !== 'voting' && section.status !== 'approved' ? (
                     <Button onClick={() => startEditing(section)}>
                       Editar Seção
                     </Button>
-                  ) : (
+                  ) : !canEditSection ? (
                     <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
                       Complete as dependências antes de editar esta seção.
                     </div>
-                  )}
+                  ) : section.status === 'voting' ? (
+                    <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                      Esta seção está em votação no Centro de Votação.
+                    </div>
+                  ) : section.status === 'approved' ? (
+                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                      Esta seção foi aprovada pela equipe.
+                    </div>
+                  ) : null}
                 </div>
               )}
 
@@ -417,7 +425,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
                 <div className="p-4 border rounded-lg bg-yellow-50">
                   <h4 className="font-medium mb-2">Em Votação</h4>
                   <p className="text-sm text-gray-600">
-                    Esta seção está sendo avaliada pela equipe.
+                    Esta seção está sendo avaliada pela equipe no Centro de Votação.
                   </p>
                 </div>
               )}
