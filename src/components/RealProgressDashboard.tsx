@@ -26,10 +26,7 @@ interface TeamMember {
   id: string;
   role: string;
   status: string;
-  user_profiles?: {
-    full_name: string;
-    avatar_url?: string;
-  };
+  user_name?: string;
 }
 
 const RealProgressDashboard = () => {
@@ -50,7 +47,7 @@ const RealProgressDashboard = () => {
     try {
       setLoading(true);
 
-      // Carregar progresso das seções detalhadas
+      // Load detailed sections progress
       const { data: detailedData, error: detailedError } = await supabase
         .rpc('calculate_detailed_section_progress', {
           business_plan_id_param: currentBusinessPlan?.business_plan_id
@@ -62,7 +59,7 @@ const RealProgressDashboard = () => {
         setDetailedProgress(detailedData || []);
       }
 
-      // Carregar progresso do canvas
+      // Load canvas progress
       const { data: canvasData, error: canvasError } = await supabase
         .rpc('get_business_plan_progress', {
           plan_id: currentBusinessPlan?.business_plan_id
@@ -71,26 +68,61 @@ const RealProgressDashboard = () => {
       if (canvasError) {
         console.error('Error loading canvas progress:', canvasError);
       } else if (canvasData && canvasData.length > 0) {
-        setOverallProgress(canvasData[0].overall_percentage || 0);
-        setCanvasProgress(canvasData[0].sections || []);
+        const progressData = canvasData[0];
+        setOverallProgress(progressData.overall_percentage || 0);
+        
+        // Handle the sections data safely
+        if (progressData.sections && typeof progressData.sections === 'object') {
+          try {
+            const sectionsArray = Array.isArray(progressData.sections) 
+              ? progressData.sections 
+              : [];
+            setCanvasProgress(sectionsArray);
+          } catch (e) {
+            console.error('Error parsing sections data:', e);
+            setCanvasProgress([]);
+          }
+        } else {
+          setCanvasProgress([]);
+        }
       }
 
-      // Carregar membros da equipe
+      // Load team members
       const { data: teamData, error: teamError } = await supabase
         .from('team_members')
-        .select(`
-          id,
-          role,
-          status,
-          user_profiles:user_id (full_name, avatar_url)
-        `)
+        .select('id, role, status, user_id')
         .eq('business_plan_id', currentBusinessPlan?.business_plan_id)
         .eq('status', 'active');
 
       if (teamError) {
         console.error('Error loading team members:', teamError);
-      } else {
-        setTeamMembers(teamData || []);
+      } else if (teamData) {
+        // Get user profiles for team members
+        const userIds = teamData.map(member => member.user_id).filter(Boolean);
+        let userProfiles: any[] = [];
+        
+        if (userIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('user_profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+
+          if (!profilesError && profilesData) {
+            userProfiles = profilesData;
+          }
+        }
+
+        const mappedTeamMembers = teamData.map(member => {
+          const userProfile = userProfiles.find(profile => profile.id === member.user_id);
+          return {
+            id: member.id,
+            role: member.role,
+            status: member.status,
+            user_name: userProfile?.full_name || 'Usuário desconhecido'
+          };
+        });
+
+        setTeamMembers(mappedTeamMembers);
       }
 
     } catch (error) {
@@ -133,7 +165,7 @@ const RealProgressDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Cards de Resumo */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -212,7 +244,7 @@ const RealProgressDashboard = () => {
         </Card>
       )}
 
-      {/* Progresso por Categoria */}
+      {/* Progress by Category */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {detailedProgress.map((category) => {
           const status = getStatusBadge(category.progress_percentage);
@@ -241,7 +273,7 @@ const RealProgressDashboard = () => {
         })}
       </div>
 
-      {/* Atividade Recente */}
+      {/* Recent Activity */}
       <Card>
         <CardHeader>
           <CardTitle>Atividade Recente</CardTitle>

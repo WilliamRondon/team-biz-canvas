@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,52 +49,71 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         return;
       }
 
-      const { data, error } = await supabase
+      // First, get the sections
+      const { data: sectionsData, error: sectionsError } = await supabase
         .from('detailed_sections')
-        .select(`
-          *,
-          user_profiles:assigned_to (full_name)
-        `)
+        .select('*')
         .eq('business_plan_id', currentBusinessPlan.business_plan_id)
         .eq('category', category)
         .order('created_at');
 
-      if (error) {
-        console.error('Error loading detailed sections:', error);
+      if (sectionsError) {
+        console.error('Error loading detailed sections:', sectionsError);
         
-        // Se não existem seções, criar as padrão
-        if (error.code === 'PGRST116' || (data && data.length === 0)) {
+        // If no sections exist, create default ones
+        if (sectionsError.code === 'PGRST116' || (sectionsData && sectionsData.length === 0)) {
           console.log('Creating default sections...');
           await createDefaultSections();
           return;
         }
-        throw error;
+        throw sectionsError;
       }
 
-      if (!data || data.length === 0) {
+      if (!sectionsData || sectionsData.length === 0) {
         console.log('No sections found, creating default ones...');
         await createDefaultSections();
         return;
       }
 
-      console.log('Loaded detailed sections:', data);
+      console.log('Loaded detailed sections:', sectionsData);
 
-      const mappedSections = data.map(section => ({
-        id: section.id,
-        title: section.title,
-        description: section.description || '',
-        content: section.content || '',
-        status: section.status as 'draft' | 'voting' | 'approved' | 'rejected',
-        assigned_to: section.assigned_to,
-        assigned_user_name: section.user_profiles?.full_name || undefined,
-        deadline: section.deadline ? new Date(section.deadline).toLocaleDateString('pt-BR') : undefined,
-        category: section.category,
-        progress_percentage: section.progress_percentage || 0,
-        dependencies: section.dependencies,
-        created_at: section.created_at,
-        updated_at: section.updated_at,
-        section_key: section.section_key
-      }));
+      // Get user profiles for assigned users
+      const assignedUserIds = sectionsData
+        .filter(section => section.assigned_to)
+        .map(section => section.assigned_to);
+
+      let userProfiles: any[] = [];
+      if (assignedUserIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, full_name')
+          .in('id', assignedUserIds);
+
+        if (!profilesError && profilesData) {
+          userProfiles = profilesData;
+        }
+      }
+
+      const mappedSections = sectionsData.map(section => {
+        const assignedUser = userProfiles.find(profile => profile.id === section.assigned_to);
+        
+        return {
+          id: section.id,
+          title: section.title,
+          description: section.description || '',
+          content: section.content || '',
+          status: section.status as 'draft' | 'voting' | 'approved' | 'rejected',
+          assigned_to: section.assigned_to,
+          assigned_user_name: assignedUser?.full_name || undefined,
+          deadline: section.deadline ? new Date(section.deadline).toLocaleDateString('pt-BR') : undefined,
+          category: section.category,
+          progress_percentage: section.progress_percentage || 0,
+          dependencies: section.dependencies,
+          created_at: section.created_at,
+          updated_at: section.updated_at,
+          section_key: section.section_key
+        };
+      });
 
       setSections(mappedSections);
       
@@ -125,7 +143,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
       }
 
       console.log('Default sections created successfully');
-      // Recarregar as seções após criar
+      // Reload sections after creating
       setTimeout(() => loadDetailedSections(), 1000);
     } catch (error) {
       console.error('Error creating default sections:', error);
@@ -137,7 +155,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
     }
   };
 
-  // Usar realtime para atualizações
+  // Use realtime for updates
   useRealtimeDetailedSections(currentBusinessPlan?.business_plan_id || '', loadDetailedSections);
 
   useEffect(() => {
@@ -156,7 +174,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
       const currentSection = sections.find(s => s.id === sectionId);
       if (!currentSection) return;
 
-      // Calcular progresso baseado no conteúdo
+      // Calculate progress based on content
       const newProgress = editContent.trim() ? Math.min(100, Math.max(25, Math.floor(editContent.length / 50) * 25)) : 0;
 
       const { error } = await supabase
@@ -173,7 +191,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
         throw error;
       }
 
-      // Atualizar estado local
+      // Update local state
       setSections(prev => prev.map(section => 
         section.id === sectionId 
           ? { 
@@ -260,7 +278,7 @@ const DetailedSectionManager = ({ category }: DetailedSectionManagerProps) => {
       return true;
     }
 
-    // Verificar se todas as dependências estão aprovadas ou com progresso >= 50%
+    // Check if all dependencies are approved or have progress >= 50%
     const dependentSections = sections.filter(s => 
       section.dependencies!.includes(s.section_key)
     );
